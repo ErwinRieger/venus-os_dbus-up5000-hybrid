@@ -1,0 +1,3 @@
+#!/bin/sh
+exec 2>&1
+exec /home/root/dbus-up5000-hybrid/start-up5000-hybrid.sh
