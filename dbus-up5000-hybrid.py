@@ -17,7 +17,8 @@ from ve_utils import exit_on_error
 from UPower import UPower            # xxx use own methods...
 
 servicenameCharger='com.victronenergy.solarcharger.ttyx'
-servicenameInverter='com.victronenergy.inverter.ttyx'
+# servicenameInverter='com.victronenergy.inverter.ttyx'
+servicenameInverter='com.victronenergy.multi.ttyx'
 
 # UP5000 Modbus registers
 RegACVol = 0x3521
@@ -74,19 +75,47 @@ class UP5000(object):
         self._dbusserviceCharger['/Load/I'] = 0 # 0
 
         # Inverter
-        # self._dbusserviceInverter.add_path('/Ac/In/1/1/P', 0) # grid input
+        """
         self._dbusserviceInverter.add_path('/Dc/0/Voltage', 0)
         self._dbusserviceInverter.add_path('/Dc/0/Current', 0)
         self._dbusserviceInverter.add_path('/Ac/Out/L1/V', 0)
         self._dbusserviceInverter.add_path('/Ac/Out/L1/I', 0)
         self._dbusserviceInverter.add_path('/Ac/Out/L1/P', 0)
 
-        # self._dbusserviceInverter['/Ac/In/1/1/P'] = 2
         self._dbusserviceInverter['/Dc/0/Voltage'] = 2
         self._dbusserviceInverter['/Dc/0/Current'] = 1
         self._dbusserviceInverter['/Ac/Out/L1/V'] = 2
         self._dbusserviceInverter['/Ac/Out/L1/I'] = 1
         self._dbusserviceInverter['/Ac/Out/L1/P'] = 2
+        """
+
+        # '/Ac/ActiveIn/ActiveInput': dummy,
+        # '/Ac/In/2/Type': dummy,
+        # '/Ac/In/2/L1/P': dummy,
+        # '/Yield/Power': dummy,
+        # '/Soc': dummy},
+
+        self._dbusserviceInverter.add_path('/Dc/0/Voltage', 0)
+        self._dbusserviceInverter.add_path('/Dc/0/Current', 0)
+
+        self._dbusserviceInverter.add_path('/Ac/Out/L1/V', 0)
+        self._dbusserviceInverter.add_path('/Ac/Out/L1/I', 0)
+        self._dbusserviceInverter.add_path('/Ac/Out/L1/P', 0)
+
+        self._dbusserviceInverter.add_path('/Ac/ActiveIn/ActiveInput', 0)
+        self._dbusserviceInverter.add_path('/Ac/In/1/Type', 0)
+        self._dbusserviceInverter.add_path('/Ac/In/1/L1/P', 0)
+
+        self._dbusserviceInverter['/Dc/0/Voltage'] = 0
+        self._dbusserviceInverter['/Dc/0/Current'] = 0
+
+        self._dbusserviceInverter['/Ac/Out/L1/V'] = 0
+        self._dbusserviceInverter['/Ac/Out/L1/I'] = 0
+        self._dbusserviceInverter['/Ac/Out/L1/P'] = 0
+
+        self._dbusserviceInverter['/Ac/ActiveIn/ActiveInput'] = 0
+        self._dbusserviceInverter['/Ac/In/1/Type'] = 1
+        self._dbusserviceInverter['/Ac/In/1/L1/P'] = 1
 
         # Grid input
         # self._dbusservice.add_path('/A/CloseFile', 0, description="Request to close file", writeable=True, onchangecallback=self.closeRequest)
