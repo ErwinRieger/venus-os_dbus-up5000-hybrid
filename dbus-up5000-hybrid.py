@@ -18,7 +18,8 @@ from UPower import UPower            # xxx use own methods...
 
 servicenameCharger='com.victronenergy.solarcharger.ttyx'
 # servicenameInverter='com.victronenergy.inverter.ttyx'
-servicenameInverter='com.victronenergy.multi.ttyx'
+# servicenameInverter='com.victronenergy.multi.ttyx'
+servicenameInverter='com.victronenergy.vebus.ttyx'
 
 # UP5000 Modbus registers
 RegACVol = 0x3521
@@ -95,16 +96,39 @@ class UP5000(object):
         # '/Yield/Power': dummy,
         # '/Soc': dummy},
 
+        """
+        '/Ac/ActiveIn/ActiveInput': dummy,
+        '/Ac/ActiveIn/L1/P': dummy,
+        '/Ac/ActiveIn/L2/P': dummy,
+        '/Ac/ActiveIn/L3/P': dummy,
+        '/Ac/Out/L1/P': dummy,
+        '/Ac/Out/L2/P': dummy,
+        '/Ac/Out/L3/P': dummy,
+        '/Mode': dummy,
+        '/State': dummy,
+        '/Dc/0/Voltage': dummy,
+        '/Dc/0/Current': dummy,
+        '/Dc/0/Power': dummy,
+        '/Soc': dummy},
+        """
+
         self._dbusserviceInverter.add_path('/Dc/0/Voltage', 0)
         self._dbusserviceInverter.add_path('/Dc/0/Current', 0)
 
         self._dbusserviceInverter.add_path('/Ac/Out/L1/V', 0)
         self._dbusserviceInverter.add_path('/Ac/Out/L1/I', 0)
         self._dbusserviceInverter.add_path('/Ac/Out/L1/P', 0)
+        self._dbusserviceInverter.add_path('/Ac/Out/L1/F', 0)
 
         self._dbusserviceInverter.add_path('/Ac/ActiveIn/ActiveInput', 0)
-        self._dbusserviceInverter.add_path('/Ac/In/1/Type', 0)
-        self._dbusserviceInverter.add_path('/Ac/In/1/L1/P', 0)
+        # self._dbusserviceInverter.add_path('/Ac/In/1/Type', 0)
+        self._dbusserviceInverter.add_path('/Ac/ActiveIn/L1/P', 0)
+        self._dbusserviceInverter.add_path('/Ac/ActiveIn/L1/V', 0)
+        self._dbusserviceInverter.add_path('/Ac/ActiveIn/L1/I', 0)
+        self._dbusserviceInverter.add_path('/Ac/ActiveIn/L1/F', 0)
+
+        self._dbusserviceInverter.add_path('/Mode', 0)
+        self._dbusserviceInverter.add_path('/State', 0)
 
         self._dbusserviceInverter['/Dc/0/Voltage'] = 0
         self._dbusserviceInverter['/Dc/0/Current'] = 0
@@ -112,10 +136,17 @@ class UP5000(object):
         self._dbusserviceInverter['/Ac/Out/L1/V'] = 0
         self._dbusserviceInverter['/Ac/Out/L1/I'] = 0
         self._dbusserviceInverter['/Ac/Out/L1/P'] = 0
+        self._dbusserviceInverter['/Ac/Out/L1/F'] = 44 # xxx
 
         self._dbusserviceInverter['/Ac/ActiveIn/ActiveInput'] = 0
-        self._dbusserviceInverter['/Ac/In/1/Type'] = 1
-        self._dbusserviceInverter['/Ac/In/1/L1/P'] = 1
+        # self._dbusserviceInverter['/Ac/In/1/Type'] = 1
+        self._dbusserviceInverter['/Ac/ActiveIn/L1/P'] = 2
+        self._dbusserviceInverter['/Ac/ActiveIn/L1/V'] = 1 # xxx not used?
+        self._dbusserviceInverter['/Ac/ActiveIn/L1/I'] = 2 # xxx not used?
+        self._dbusserviceInverter['/Ac/ActiveIn/L1/F'] = 33 # xxx not used?
+
+        self._dbusserviceInverter['/Mode'] = 3 # on
+        self._dbusserviceInverter['/State'] =  9 # inverting
 
         # Grid input
         # self._dbusservice.add_path('/A/CloseFile', 0, description="Request to close file", writeable=True, onchangecallback=self.closeRequest)
