@@ -19,6 +19,7 @@ from UPower import UPower            # xxx use own methods...
 # UP5000 Modbus registers
 RegACVol = 0x3521
 RegACCur = 0x3522
+RegPVYield = 0x3557
 
 RegPVVol = 0x3549
 RegPVCur = 0x354a
@@ -69,11 +70,25 @@ class UP5000(object):
         # PVcharger
         self._dbusserviceCharger.add_path('/Dc/0/Voltage', 0)
         self._dbusserviceCharger.add_path('/Dc/0/Current', 0)
+        self._dbusserviceCharger.add_path('/Pv/0/V', 0)
+        self._dbusserviceCharger.add_path('/Pv/0/P', 0)
         self._dbusserviceCharger.add_path('/Load/I', 0)
+        self._dbusserviceCharger.add_path('/Mode', 0)
+        self._dbusserviceCharger.add_path('/NrOfTrackers', 0)
+        self._dbusserviceCharger.add_path('/Yield/Power', 0)
+        self._dbusserviceCharger.add_path('/Yield/System', 0)
+        self._dbusserviceCharger.add_path('/Yield/User', 0)
 
         self._dbusserviceCharger['/Dc/0/Voltage'] = 1 # 0
         self._dbusserviceCharger['/Dc/0/Current'] = 1 # 0
         self._dbusserviceCharger['/Load/I'] = 0 # 0
+        self._dbusserviceCharger['/Mode'] = 1 # on
+        self._dbusserviceCharger['/NrOfTrackers'] = 1
+        self._dbusserviceCharger['/Pv/0/V'] = 0
+        self._dbusserviceCharger['/Pv/0/P'] = 0
+        self._dbusserviceCharger['/Yield/Power'] = 0
+        self._dbusserviceCharger['/Yield/System'] = 0
+        self._dbusserviceCharger['/Yield/User'] = 0
 
         # Inverter
         """
@@ -121,6 +136,7 @@ class UP5000(object):
         self._dbusserviceInverter.add_path('/Ac/Out/L1/F', 0)
 
         self._dbusserviceInverter.add_path('/Ac/ActiveIn/ActiveInput', 0)
+        self._dbusserviceInverter.add_path('/Ac/ActiveIn/Connected', 0)
         # self._dbusserviceInverter.add_path('/Ac/In/1/Type', 0)
         self._dbusserviceInverter.add_path('/Ac/ActiveIn/L1/P', 0)
         self._dbusserviceInverter.add_path('/Ac/ActiveIn/L1/V', 0)
@@ -139,6 +155,7 @@ class UP5000(object):
         self._dbusserviceInverter['/Ac/Out/L1/F'] = 44 # xxx
 
         self._dbusserviceInverter['/Ac/ActiveIn/ActiveInput'] = 0
+        self._dbusserviceInverter['/Ac/ActiveIn/Connected'] = 1
         # self._dbusserviceInverter['/Ac/In/1/Type'] = 1
         self._dbusserviceInverter['/Ac/ActiveIn/L1/P'] = 23
         self._dbusserviceInverter['/Ac/ActiveIn/L1/V'] = 230 # xxx not used?
@@ -187,12 +204,18 @@ class UP5000(object):
 
         bavol = self.up.readReg(0x351d)
         
+        yield = self.up.readReg(RegPVYield)
+
         logging.info("PV power: %f (%f * %f)" % (pvpow, pvvol, pvcur))
         logging.info("AC power: %f (%f * %f)" % (acpow, acvol, accur))
 
         self._dbusserviceCharger['/Dc/0/Voltage'] = pvvol
         self._dbusserviceCharger['/Dc/0/Current'] = pvcur
         self._dbusserviceCharger['/Load/I'] = 0
+        self._dbusserviceCharger['/Pv/0/V'] = pvvol
+        self._dbusserviceCharger['/Pv/0/P'] = pvpow
+        self._dbusserviceCharger['/Yield/System'] = yield
+        self._dbusserviceCharger['/Yield/User'] = yield
 
         self._dbusserviceInverter['/Dc/0/Voltage'] = bavol
         self._dbusserviceInverter['/Dc/0/Current'] = acpow/bavol
