@@ -16,11 +16,6 @@ from dbusmonitor import DbusMonitor
 from ve_utils import exit_on_error
 from UPower import UPower            # xxx use own methods...
 
-servicenameCharger='com.victronenergy.solarcharger.ttyx'
-# servicenameInverter='com.victronenergy.inverter.ttyx'
-# servicenameInverter='com.victronenergy.multi.ttyx'
-servicenameInverter='com.victronenergy.vebus.ttyx'
-
 # UP5000 Modbus registers
 RegACVol = 0x3521
 RegACCur = 0x3522
@@ -33,12 +28,17 @@ RegBAVol = 0x351d
 
 class UP5000(object):
 
-    def __init__(self, connection='UP5000'):
+    def __init__(self, dev, connection='UP5000'):
+
+        servicenameCharger=f'com.victronenergy.solarcharger.{dev}'
+        # servicenameInverter=f'com.victronenergy.inverter.{dev}'
+        # servicenameInverter=f'com.victronenergy.multi.{dev}'
+        servicenameInverter=f'com.victronenergy.vebus.{dev}'
 
         logging.debug("Opening serial interface xxx for modbus...")
-        self.up = UPower(device="/dev/ttyUSB1")
+        self.up = UPower(device="/dev/" + dev)
         if self.up.connect() < 0:
-            logging.warning("Cant open rs485 interface /dev/xxx, exiting")
+            logging.warning("Cant open rs485 interface /dev/{dev}, exiting")
             sys.exit(0)
 
         logging.debug("Service %s and %s starting... " % (servicenameCharger, servicenameInverter))
@@ -140,9 +140,9 @@ class UP5000(object):
 
         self._dbusserviceInverter['/Ac/ActiveIn/ActiveInput'] = 0
         # self._dbusserviceInverter['/Ac/In/1/Type'] = 1
-        self._dbusserviceInverter['/Ac/ActiveIn/L1/P'] = 2
-        self._dbusserviceInverter['/Ac/ActiveIn/L1/V'] = 1 # xxx not used?
-        self._dbusserviceInverter['/Ac/ActiveIn/L1/I'] = 2 # xxx not used?
+        self._dbusserviceInverter['/Ac/ActiveIn/L1/P'] = 23
+        self._dbusserviceInverter['/Ac/ActiveIn/L1/V'] = 230 # xxx not used?
+        self._dbusserviceInverter['/Ac/ActiveIn/L1/I'] = 0.1 # xxx not used?
         self._dbusserviceInverter['/Ac/ActiveIn/L1/F'] = 33 # xxx not used?
 
         self._dbusserviceInverter['/Mode'] = 3 # on
@@ -238,7 +238,7 @@ def main():
     # Have a mainloop, so we can send/receive asynchronous calls to and from dbus
     DBusGMainLoop(set_as_default=True)
 
-    up5000 = UP5000( )
+    up5000 = UP5000( dev = sys.argv[1] )
 
     logging.info('Connected to dbus, and switching over to GLib.MainLoop() (= event based)')
     mainloop = GLib.MainLoop()
