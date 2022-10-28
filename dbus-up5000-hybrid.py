@@ -204,7 +204,7 @@ class UP5000(object):
 
         bavol = self.up.readReg(0x351d)
         
-        yield = self.up.readReg(RegPVYield)
+        pvyield = self.up.readReg(RegPVYield)
 
         logging.info("PV power: %f (%f * %f)" % (pvpow, pvvol, pvcur))
         logging.info("AC power: %f (%f * %f)" % (acpow, acvol, accur))
@@ -214,8 +214,9 @@ class UP5000(object):
         self._dbusserviceCharger['/Load/I'] = 0
         self._dbusserviceCharger['/Pv/0/V'] = pvvol
         self._dbusserviceCharger['/Pv/0/P'] = pvpow
-        self._dbusserviceCharger['/Yield/System'] = yield
-        self._dbusserviceCharger['/Yield/User'] = yield
+        self._dbusserviceCharger['/Yield/Power'] = pvpow
+        self._dbusserviceCharger['/Yield/System'] = pvyield
+        self._dbusserviceCharger['/Yield/User'] = pvyield
 
         self._dbusserviceInverter['/Dc/0/Voltage'] = bavol
         self._dbusserviceInverter['/Dc/0/Current'] = acpow/bavol
