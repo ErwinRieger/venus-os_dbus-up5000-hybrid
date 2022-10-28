@@ -42,6 +42,14 @@ class UP5000(object):
             logging.warning("Cant open rs485 interface /dev/{dev}, exiting")
             sys.exit(0)
 
+        logging.debug("Reading initial values to test connection...")
+        pvvol = self.up.readReg(RegPVVol)
+        pvcur = self.up.readReg(RegPVCur)
+        acvol = self.up.readReg(RegACVol)
+        accur = self.up.readReg(RegACCur)
+        if pvvol == -2 and pvcur == -2 and acvol == -2 and accur == -2:
+            sys.exit(0)
+
         logging.debug("Service %s and %s starting... " % (servicenameCharger, servicenameInverter))
 
         dummy = {'code': None, 'whenToLog': 'configChange', 'accessLevel': None}
@@ -79,8 +87,8 @@ class UP5000(object):
         self._dbusserviceCharger.add_path('/Yield/System', 0)
         self._dbusserviceCharger.add_path('/Yield/User', 0)
 
-        self._dbusserviceCharger['/Dc/0/Voltage'] = 1 # 0
-        self._dbusserviceCharger['/Dc/0/Current'] = 1 # 0
+        self._dbusserviceCharger['/Dc/0/Voltage'] = 0
+        self._dbusserviceCharger['/Dc/0/Current'] = 0
         self._dbusserviceCharger['/Load/I'] = 0 # 0
         self._dbusserviceCharger['/Mode'] = 1 # on
         self._dbusserviceCharger['/NrOfTrackers'] = 1
@@ -203,9 +211,9 @@ class UP5000(object):
         acpow = acvol * accur
 
         bavol = self.up.readReg(0x351d)
-        
-        pvyield = self.up.readReg(RegPVYield)
 
+        pvyield = self.up.readReg(RegPVYield)
+        
         logging.info("PV power: %f (%f * %f)" % (pvpow, pvvol, pvcur))
         logging.info("AC power: %f (%f * %f)" % (acpow, acvol, accur))
 
@@ -219,7 +227,7 @@ class UP5000(object):
         self._dbusserviceCharger['/Yield/User'] = pvyield
 
         self._dbusserviceInverter['/Dc/0/Voltage'] = bavol
-        self._dbusserviceInverter['/Dc/0/Current'] = acpow/bavol
+        self._dbusserviceInverter['/Dc/0/Current'] = -acpow/bavol # negative, inverter is discharging the batterie
 
         self._dbusserviceInverter['/Ac/Out/L1/V'] = acvol
         self._dbusserviceInverter['/Ac/Out/L1/I'] = accur
