@@ -37,9 +37,10 @@ class UP5000(object):
         servicenameInverter=f'com.victronenergy.vebus.{dev}'
 
         logging.debug("Opening serial interface xxx for modbus...")
-        self.up = UPower(device="/dev/" + dev)
+        self.device = "/dev/" + dev
+        self.up = UPower(device=self.device)
         if self.up.connect() < 0:
-            logging.warning("Cant open rs485 interface /dev/{dev}, exiting")
+            logging.warning("Cant open rs485 interface {device}, exiting")
             sys.exit(0)
 
         logging.debug("Reading initial values to test connection...")
@@ -72,8 +73,8 @@ class UP5000(object):
         self._dbusserviceCharger = VeDbusService(servicenameCharger, bus=dbus.bus.BusConnection.__new__(dbus.bus.BusConnection, dbus.bus.BusConnection.TYPE_SYSTEM))
         self._dbusserviceInverter = VeDbusService(servicenameInverter, bus=dbus.bus.BusConnection.__new__(dbus.bus.BusConnection, dbus.bus.BusConnection.TYPE_SYSTEM))
 
-        self.createManagementPaths(self._dbusserviceCharger, "Manne Spezial Lader", connection)
-        self.createManagementPaths(self._dbusserviceInverter, "Manne Spezial Inverter", connection)
+        self.createManagementPaths(self._dbusserviceCharger, "UP5000 MPPT Solar Charger", connection)
+        self.createManagementPaths(self._dbusserviceInverter, "UP5000 Inverter", connection)
 
         # PVcharger
         self._dbusserviceCharger.add_path('/Dc/0/Voltage', 0)
@@ -87,6 +88,11 @@ class UP5000(object):
         self._dbusserviceCharger.add_path('/Yield/System', 0)
         self._dbusserviceCharger.add_path('/Yield/User', 0)
 
+        # Open-state of datafile
+        self._dbusserviceCharger.add_path('/Modbus/ModbusOpened', 1)
+        # Request to close datafile
+        self._dbusserviceCharger.add_path('/Modbus/CloseModbus', 0, description="Request to close file", writeable=True, onchangecallback=self.closeRequest)
+
         self._dbusserviceCharger['/Dc/0/Voltage'] = 0
         self._dbusserviceCharger['/Dc/0/Current'] = 0
         self._dbusserviceCharger['/Load/I'] = 0 # 0
@@ -97,6 +103,9 @@ class UP5000(object):
         self._dbusserviceCharger['/Yield/Power'] = 0
         self._dbusserviceCharger['/Yield/System'] = 0
         self._dbusserviceCharger['/Yield/User'] = 0
+
+        self._dbusserviceCharger['/Modbus/ModbusOpened'] = 1
+        self._dbusserviceCharger['/Modbus/CloseModbus'] = 0
 
         # Inverter
         """
@@ -173,12 +182,6 @@ class UP5000(object):
         self._dbusserviceInverter['/Mode'] = 3 # on
         self._dbusserviceInverter['/State'] =  9 # inverting
 
-        # Grid input
-        # self._dbusservice.add_path('/A/CloseFile', 0, description="Request to close file", writeable=True, onchangecallback=self.closeRequest)
-
-        # self._dbusservice['/A/FileOpened'] = 1
-        # self._dbusservice['/A/CloseFile'] = 0
-
         self.update()
 
         GLib.timeout_add(5000, exit_on_error, self.update)
@@ -199,6 +202,10 @@ class UP5000(object):
         dbusservice.add_path('/Connected', 1)
 
     def update(self):
+
+        if not self.devIsOpen():
+            logging.info('update(): modbus device closed, skipping read/update.')
+            return True
 
         logging.info('update...')
 
@@ -248,6 +255,23 @@ class UP5000(object):
         # self._remove_unconnected_services(services)
         return services
     """
+
+    def devIsOpen(self):
+        return self.up.instrument.serial.is_open
+
+    def closeRequest(self, path, closeFile):
+
+        if closeFile and self.devIsOpen():
+            # close hybrid rs485
+            self.up.instrument.serial.close()
+            self._dbusserviceCharger['/Modbus/ModbusOpened'] = 0
+
+        if not closeFile and not self.devIsOpen():
+            # re-open hybrid rs485
+            self.up.instrument.serial.open()
+            self._dbusserviceCharger['/Modbus/ModbusOpened'] = 1
+
+        return True
 
 # === All code below is to simply run it from the commandline for debugging purposes ===
 
