@@ -21,11 +21,14 @@ RegACVol = 0x3521
 RegACCur = 0x3522
 RegPVYield = 0x3557
 
-RegPVVol = 0x3549
-RegPVCur = 0x354a
+RegPVVol = 0x3549 # B74
+RegPVCur = 0x354a # B75
+RegPVPowLow = 0x354b # B76
+RegPVPowHig = 0x354c # B77
 
 # battery voltage
-RegBAVol = 0x351d
+# RegBAVol = 0x351d # B30, DC-AC discharging module-Current input voltage, seems the same as battery voltage B128
+RegBAVol = 0x3580 # B128, Current system battery voltage
 
 class UP5000(object):
 
@@ -217,28 +220,28 @@ class UP5000(object):
         accur = self.up.readReg(RegACCur)
         acpow = acvol * accur
 
-        bavol = self.up.readReg(0x351d)
+        bavol = self.up.readReg(RegBAVol)
 
         pvyield = self.up.readReg(RegPVYield)
         
         logging.info("PV power: %f (%f * %f)" % (pvpow, pvvol, pvcur))
         logging.info("AC power: %f (%f * %f)" % (acpow, acvol, accur))
 
-        self._dbusserviceCharger['/Dc/0/Voltage'] = pvvol
-        self._dbusserviceCharger['/Dc/0/Current'] = pvcur
+        self._dbusserviceCharger['/Dc/0/Voltage'] = round(bavol, 2)
+        self._dbusserviceCharger['/Dc/0/Current'] = round(pvpow / bavol, 2)
         self._dbusserviceCharger['/Load/I'] = 0
-        self._dbusserviceCharger['/Pv/0/V'] = pvvol
-        self._dbusserviceCharger['/Pv/0/P'] = pvpow
-        self._dbusserviceCharger['/Yield/Power'] = pvpow
+        self._dbusserviceCharger['/Pv/0/V'] = round(pvvol, 2)
+        self._dbusserviceCharger['/Pv/0/P'] = round(pvpow, 2)
+        self._dbusserviceCharger['/Yield/Power'] = round(pvpow, 2)
         self._dbusserviceCharger['/Yield/System'] = pvyield
         self._dbusserviceCharger['/Yield/User'] = pvyield
 
-        self._dbusserviceInverter['/Dc/0/Voltage'] = bavol
-        self._dbusserviceInverter['/Dc/0/Current'] = -acpow/bavol # negative, inverter is discharging the batterie
+        self._dbusserviceInverter['/Dc/0/Voltage'] = round(bavol, 2)
+        self._dbusserviceInverter['/Dc/0/Current'] = -round(acpow/bavol, 2) # negative, inverter is discharging the batterie
 
-        self._dbusserviceInverter['/Ac/Out/L1/V'] = acvol
-        self._dbusserviceInverter['/Ac/Out/L1/I'] = accur
-        self._dbusserviceInverter['/Ac/Out/L1/P'] = acpow
+        self._dbusserviceInverter['/Ac/Out/L1/V'] = round(acvol, 2)
+        self._dbusserviceInverter['/Ac/Out/L1/I'] = round(accur, 2)
+        self._dbusserviceInverter['/Ac/Out/L1/P'] = round(acpow, 2)
 
         return True
 
