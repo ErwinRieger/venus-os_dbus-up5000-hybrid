@@ -222,25 +222,6 @@ class UP5000(object):
         dbusservice.add_path('/HardwareVersion', 0)
         dbusservice.add_path('/Connected', 1)
 
-    # read two 16 bit, 100-scaled values and compute 32 bit long from it.
-    # xxx positive values only.
-    def readLong(self, register, log=""):
-
-        low = self.up.readReg(register, log)
-        high = self.up.readReg(register+1, log)
-
-        if low == None or high == None:
-            if log:
-                logging.debug(f"Error reading long register 0x{register:x}, '{log}'")
-            return None
-
-        reading = low + (high*0xffff)
-
-        if log:
-            logging.debug(f"Reading long register 0x{register:x}, '{log}': {reading}")
-
-        return reading
-
     def update(self):
 
         if not self.devIsOpen():
@@ -254,7 +235,7 @@ class UP5000(object):
         #
         gridvol = self.up.readReg(RegGridVol, "RegGridVol")
         gridcur = self.up.readReg(RegGridCur, "RegGridCur")
-        gridpow = self.readLong(RegGridPow, "RegGridPow")
+        gridpow = self.up.readLong(RegGridPow, "RegGridPow")
         # if gridvol != None and gridcur != None:
             # logging.info("Grid input power: %f (%f * %f)" % (gridpow, gridvol, gridcur))
 
@@ -271,7 +252,7 @@ class UP5000(object):
         #
         # PV Input, charger
         #
-        pvyield = self.readLong(RegPVYield, "RegPVYield")
+        pvyield = self.up.readLong(RegPVYield, "RegPVYield")
         if pvyield != None:
             self._dbusserviceCharger['/Yield/System'] = pvyield
             self._dbusserviceCharger['/Yield/User'] = pvyield
@@ -282,7 +263,7 @@ class UP5000(object):
 
         pvcur = self.up.readReg(RegPVCur, "RegPVCur") # not used, for tracing only
 
-        pvpow = self.readLong(RegPVPow, "RegPVPow")
+        pvpow = self.up.readLong(RegPVPow, "RegPVPow")
         if pvpow != None:
             self._dbusserviceCharger['/Pv/0/P'] = round(pvpow, 2)
             self._dbusserviceCharger['/Yield/Power'] = round(pvpow, 2)

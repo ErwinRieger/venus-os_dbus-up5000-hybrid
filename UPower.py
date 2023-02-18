@@ -156,6 +156,25 @@ class UPower:
 
             return reading
 
+        # read two 16 bit, 100-scaled values and compute 32 bit long from it.
+        # xxx positive values only.
+        def readLong(self, register, log=""):
+
+            low = self.readReg(register, log)
+            high = self.readReg(register+1, log)
+
+            if low == None or high == None:
+                if log:
+                    logging.debug(f"Error reading long register 0x{register:x}, '{log}'")
+                return None
+
+            reading = low + (high*0xffff)
+
+            if log:
+                logging.debug(f"Reading long register 0x{register:x}, '{log}': {reading}")
+
+            return reading
+
         # read parameter
         def readParam(self,register,decimals=2):
             try:
