@@ -173,6 +173,7 @@ class UP5000(object):
         self._dbusserviceInverter.add_path('/Ac/Out/L1/F', 0)
 
         self._dbusserviceInverter.add_path('/Ac/ActiveIn/ActiveInput', 0)
+        self._dbusserviceInverter.add_path('/Ac/ActiveIn/NumberOfAcInputs', 0)
         self._dbusserviceInverter.add_path('/Ac/ActiveIn/Connected', 0)
         # self._dbusserviceInverter.add_path('/Ac/In/1/Type', 0)
         self._dbusserviceInverter.add_path('/Ac/ActiveIn/L1/P', 0)
@@ -192,6 +193,7 @@ class UP5000(object):
         self._dbusserviceInverter['/Ac/Out/L1/F'] = 50 # xxx
 
         self._dbusserviceInverter['/Ac/ActiveIn/ActiveInput'] = 0
+        self._dbusserviceInverter['/Ac/ActiveIn/NumberOfAcInputs'] = 1
         self._dbusserviceInverter['/Ac/ActiveIn/Connected'] = 1
         # self._dbusserviceInverter['/Ac/In/1/Type'] = 1
         self._dbusserviceInverter['/Ac/ActiveIn/L1/P'] = 23
@@ -234,10 +236,14 @@ class UP5000(object):
         # AC Input (Grid), inverter
         #
         gridvol = self.up.readReg(RegGridVol, "RegGridVol")
+        if gridvol != None:
+            self._dbusserviceInverter['/Ac/ActiveIn/L1/V'] = gridvol
         gridcur = self.up.readReg(RegGridCur, "RegGridCur")
+        if gridcur != None:
+            self._dbusserviceInverter['/Ac/ActiveIn/L1/I'] = gridcur
         gridpow = self.up.readLong(RegGridPow, "RegGridPow")
-        # if gridvol != None and gridcur != None:
-            # logging.info("Grid input power: %f (%f * %f)" % (gridpow, gridvol, gridcur))
+        if gridpow != None:
+            self._dbusserviceInverter['/Ac/ActiveIn/L1/P'] = gridpow
 
         #
         # AC Output, inverter
