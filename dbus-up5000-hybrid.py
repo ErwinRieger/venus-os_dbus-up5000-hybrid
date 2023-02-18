@@ -76,9 +76,11 @@ class UP5000(object):
         dummy = {'code': None, 'whenToLog': 'configChange', 'accessLevel': None}
         # register = { '/Dc/0/Voltage': dummy, '/Dc/0/Current': dummy } 
         dbus_tree= {
-                # 'com.victronenergy.battery': register,
-                }
-
+            'com.victronenergy.settings': {
+                '/': dummy,
+                '/Settings/SystemSetup/AcInput1': dummy,
+            }
+        }
         self._dbusmonitor = DbusMonitor(dbus_tree)
 
 	# Get dynamic servicename for serial-battery
@@ -204,10 +206,51 @@ class UP5000(object):
         self._dbusserviceInverter['/Mode'] = 3 # on
         self._dbusserviceInverter['/State'] =  9 # inverting
 
+        #
+        # Setting '/Settings/SystemSetup/AcInput1' must be set to a valid input source type (0: nothing, 1: grid, 2: generator), this 
+        # can be done using victron-remote web interface under settings/system-setup/ac input.
+        #
+        # Use
+        #   dbus -y com.victronenergy.settings /Settings AddSetting SystemSetup AcInput1 1 i 0 3
+        # to create setting.
+        # See https://github.com/victronenergy/localsettings, https://github.com/victronenergy/velib_python/blob/master/settingsdevice.py#L69,
+        # https://community.victronenergy.com/questions/61051/how-to-create-a-new-local-setting-using-comvictron.html
+        #
+        # ok, we need SettingsDevice
+        # self._dbusmonitor.set_value('com.victronenergy.settings', '/Settings/SystemSetup/AcInput1', 1)
+        #
+        """
+		# Connect to localsettings
+		supported_settings = {
+			'batteryservice': ['/Settings/SystemSetup/BatteryService', self.BATSERVICE_DEFAULT, 0, 0],
+			'hasdcsystem': ['/Settings/SystemSetup/HasDcSystem', 0, 0, 1],
+			'useacout': ['/Settings/SystemSetup/HasAcOutSystem', 1, 0, 1]}
+
+		for m in self._modules:
+			for setting in m.get_settings():
+				supported_settings[setting[0]] = list(setting[1:])
+
+		self._settings = self._create_settings(supported_settings, self._handlechangedsetting)
+
+
+
+	def _create_settings(self, *args, **kwargs):
+		bus = dbus.SessionBus() if 'DBUS_SESSION_BUS_ADDRESS' in os.environ else dbus.SystemBus()
+		return SettingsDevice(bus, *args, timeout=10, **kwargs)
+
+	def _create_dbus_service(self):
+		venusversion, venusbuildtime = self._get_venus_versioninfo()
+
+		dbusservice = VeDbusService('com.victronenergy.system')
+		dbusservice.add_mandatory_paths(
+			processname=__file__,
+
+        """
+
         self.update()
 
-        # GLib.timeout_add(5000, exit_on_error, self.update)
-        GLib.timeout_add(5000, self.update)
+        GLib.timeout_add(5000, exit_on_error, self.update)
+        # GLib.timeout_add(5000, self.update)
 
     def createManagementPaths(self, dbusservice, productname, connection):
 
