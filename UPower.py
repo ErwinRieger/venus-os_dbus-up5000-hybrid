@@ -1,4 +1,5 @@
 import minimalmodbus, time
+import logging
 
 # Parameters
 
@@ -133,12 +134,27 @@ class UPower:
             return 0
 
         # read informational register
-        def readReg(self,register):
+        def _readReg(self,register):
             try:
                     reading = self.instrument.read_register(register, 2, 4)
                     return reading
             except IOError:
                     return -2
+
+        # read informational register
+        def readReg(self,register, log="", signed=False):
+
+            try:
+                    reading = self.instrument.read_register(register, 2, 4, signed=signed)
+            except IOError:
+                    if log:
+                        logging.debug(f"Error reading register 0x{register:x}, '{log}'")
+                    return None
+
+            if log:
+                logging.debug(f"Reading register 0x{register:x}, '{log}': {reading}")
+
+            return reading
 
         # read parameter
         def readParam(self,register,decimals=2):
