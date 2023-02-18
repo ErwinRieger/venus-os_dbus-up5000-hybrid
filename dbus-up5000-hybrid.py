@@ -16,19 +16,36 @@ from dbusmonitor import DbusMonitor
 from ve_utils import exit_on_error
 from UPower import UPower            # xxx use own methods...
 
+# problem mit 32 bit long werten: diese werden als 2 16 bit worte übertragen
+# die jeweils mit 100 skaliert sind.
+# wertebereich eines wortes: 0xffff/100 = 655.35
+#
+#
+# long signed problematik: es gibt nur einen (long) wert der vorzeichenbehaftet ist,
+# und das ist der batt. strom B129/B130. Dort reicht es aber aus, nur das low-wort zu
+# beachten, da ein wertebereich von +/- 327.x A reichen sollte...
+#
+
 # UP5000 Modbus registers
-RegACVol = 0x3521
-RegACCur = 0x3522
-RegPVYield = 0x3557
+RegACVol = 0x3521 # B34 Load Output Voltage
+RegACCur = 0x3522 # Load Output Current
+# XXX there is no "Load Output Power" register, compute it from voltage and current
+
+RegPVYield = 0x3557 # Long B88/B89 PV 1 Total Cumulative Charge + 
 
 RegPVVol = 0x3549 # B74
 RegPVCur = 0x354a # B75
-RegPVPowLow = 0x354b # B76
-RegPVPowHig = 0x354c # B77
+RegPVPow = 0x354b # Long B76/B77
 
 # battery voltage
 # RegBAVol = 0x351d # B30, DC-AC discharging module-Current input voltage, seems the same as battery voltage B128
 RegBAVol = 0x3580 # B128, Current system battery voltage
+RegBACur = 0x3581 # Long B129/B130 Battery 1 Current L, It is positive when charging and negative when discharging.
+
+# Grid input
+RegGridVol = 0x3500 # B1, Electricity 1 Charging Input Voltage
+RegGridCur = 0x3501 # B2, Electricity 1 Charging Input Current
+RegGridPow = 0x3502 # B3/B4, Electricity 1 Charging Input Power L, AC-DC charging module--AC input current power
 
 class UP5000(object):
 
@@ -47,11 +64,11 @@ class UP5000(object):
             sys.exit(0)
 
         logging.debug("Reading initial values to test connection...")
-        pvvol = self.up.readReg(RegPVVol)
-        pvcur = self.up.readReg(RegPVCur)
-        acvol = self.up.readReg(RegACVol)
-        accur = self.up.readReg(RegACCur)
-        if pvvol == -2 and pvcur == -2 and acvol == -2 and accur == -2:
+        pvvol = self.up.readReg(RegPVVol, "RegPVVol")
+        pvcur = self.up.readReg(RegPVCur, "RegPVCur")
+        acvol = self.up.readReg(RegACVol, "RegACVol")
+        accur = self.up.readReg(RegACCur, "RegACCur")
+        if pvvol == None and pvcur == None and acvol == None and accur == None:
             sys.exit(0)
 
         logging.debug("Service %s and %s starting... " % (servicenameCharger, servicenameInverter))
@@ -172,7 +189,7 @@ class UP5000(object):
         self._dbusserviceInverter['/Ac/Out/L1/V'] = 0
         self._dbusserviceInverter['/Ac/Out/L1/I'] = 0
         self._dbusserviceInverter['/Ac/Out/L1/P'] = 0
-        self._dbusserviceInverter['/Ac/Out/L1/F'] = 44 # xxx
+        self._dbusserviceInverter['/Ac/Out/L1/F'] = 50 # xxx
 
         self._dbusserviceInverter['/Ac/ActiveIn/ActiveInput'] = 0
         self._dbusserviceInverter['/Ac/ActiveIn/Connected'] = 1
@@ -180,14 +197,15 @@ class UP5000(object):
         self._dbusserviceInverter['/Ac/ActiveIn/L1/P'] = 23
         self._dbusserviceInverter['/Ac/ActiveIn/L1/V'] = 230 # xxx not used?
         self._dbusserviceInverter['/Ac/ActiveIn/L1/I'] = 0.1 # xxx not used?
-        self._dbusserviceInverter['/Ac/ActiveIn/L1/F'] = 33 # xxx not used?
+        self._dbusserviceInverter['/Ac/ActiveIn/L1/F'] = 50 # xxx not used?
 
         self._dbusserviceInverter['/Mode'] = 3 # on
         self._dbusserviceInverter['/State'] =  9 # inverting
 
         self.update()
 
-        GLib.timeout_add(5000, exit_on_error, self.update)
+        # GLib.timeout_add(5000, exit_on_error, self.update)
+        GLib.timeout_add(5000, self.update)
 
     def createManagementPaths(self, dbusservice, productname, connection):
 
@@ -204,6 +222,25 @@ class UP5000(object):
         dbusservice.add_path('/HardwareVersion', 0)
         dbusservice.add_path('/Connected', 1)
 
+    # read two 16 bit, 100-scaled values and compute 32 bit long from it.
+    # xxx positive values only.
+    def readLong(self, register, log=""):
+
+        low = self.up.readReg(register, log)
+        high = self.up.readReg(register+1, log)
+
+        if low == None or high == None:
+            if log:
+                logging.debug(f"Error reading long register 0x{register:x}, '{log}'")
+            return None
+
+        reading = low + (high*0xffff)
+
+        if log:
+            logging.debug(f"Reading long register 0x{register:x}, '{log}': {reading}")
+
+        return reading
+
     def update(self):
 
         if not self.devIsOpen():
@@ -212,37 +249,74 @@ class UP5000(object):
 
         logging.info('update...')
 
-        pvvol = self.up.readReg(RegPVVol)
-        pvcur = self.up.readReg(RegPVCur)
-        pvpow = pvvol * pvcur
+        #
+        # AC Input (Grid), inverter
+        #
+        gridvol = self.up.readReg(RegGridVol, "RegGridVol")
+        gridcur = self.up.readReg(RegGridCur, "RegGridCur")
+        gridpow = self.readLong(RegGridPow, "RegGridPow")
+        # if gridvol != None and gridcur != None:
+            # logging.info("Grid input power: %f (%f * %f)" % (gridpow, gridvol, gridcur))
 
-        acvol = self.up.readReg(RegACVol)
-        accur = self.up.readReg(RegACCur)
+        #
+        # AC Output, inverter
+        #
+        acvol = self.up.readReg(RegACVol, "RegACVol")
+        accur = self.up.readReg(RegACCur, "RegACCur")
         acpow = acvol * accur
 
-        bavol = self.up.readReg(RegBAVol)
+        bavol = self.up.readReg(RegBAVol, "RegBAVol")
+        bacur_real = self.up.readReg(RegBACur, "RegBACur", signed=True) # note: no readLong here
 
-        pvyield = self.up.readReg(RegPVYield)
-        
-        logging.info("PV power: %f (%f * %f)" % (pvpow, pvvol, pvcur))
+        #
+        # PV Input, charger
+        #
+        pvyield = self.readLong(RegPVYield, "RegPVYield")
+        if pvyield != None:
+            self._dbusserviceCharger['/Yield/System'] = pvyield
+            self._dbusserviceCharger['/Yield/User'] = pvyield
+
+        pvvol = self.up.readReg(RegPVVol, "RegPVVol")
+        if pvvol != None:
+            self._dbusserviceCharger['/Pv/0/V'] = round(pvvol, 2)
+
+        pvcur = self.up.readReg(RegPVCur, "RegPVCur") # not used, for tracing only
+
+        pvpow = self.readLong(RegPVPow, "RegPVPow")
+        if pvpow != None:
+            self._dbusserviceCharger['/Pv/0/P'] = round(pvpow, 2)
+            self._dbusserviceCharger['/Yield/Power'] = round(pvpow, 2)
+
         logging.info("AC power: %f (%f * %f)" % (acpow, acvol, accur))
 
         self._dbusserviceCharger['/Dc/0/Voltage'] = round(bavol, 2)
-        self._dbusserviceCharger['/Dc/0/Current'] = round(pvpow / bavol, 2)
-        self._dbusserviceCharger['/Load/I'] = 0
-        self._dbusserviceCharger['/Pv/0/V'] = round(pvvol, 2)
-        self._dbusserviceCharger['/Pv/0/P'] = round(pvpow, 2)
-        self._dbusserviceCharger['/Yield/Power'] = round(pvpow, 2)
-        self._dbusserviceCharger['/Yield/System'] = pvyield
-        self._dbusserviceCharger['/Yield/User'] = pvyield
-
         self._dbusserviceInverter['/Dc/0/Voltage'] = round(bavol, 2)
-        self._dbusserviceInverter['/Dc/0/Current'] = -round(acpow/bavol, 2) # negative, inverter is discharging the batterie
+
+        if bacur_real != None:
+
+            bacur_pv = (pvpow / bavol)
+
+            # XXX anteil AC-DC-charger?
+
+            # falls ladung, dann wird batteriestrom dem pvcharger
+            # zugeschrieben:
+            if bacur_pv > 0:
+                self._dbusserviceCharger['/Dc/0/Current'] = round(bacur_pv, 2) # positive=charging
+            else:
+                self._dbusserviceCharger['/Dc/0/Current'] = 0
+
+            bacur_inverter_computed = bacur_real - bacur_pv # bacur_pv wird über pv-lader ins "victron-system" eingespeist
+            self._dbusserviceInverter['/Dc/0/Current'] = round(bacur_inverter_computed, 2) # negative, inverter is discharging the batterie
+
+            logging.info(f"Batt current sum from up5: {bacur_real}A, without pv-charge ({bacur_pv}A): {bacur_inverter_computed}A")
+
+        self._dbusserviceCharger['/Load/I'] = 0
 
         self._dbusserviceInverter['/Ac/Out/L1/V'] = round(acvol, 2)
         self._dbusserviceInverter['/Ac/Out/L1/I'] = round(accur, 2)
         self._dbusserviceInverter['/Ac/Out/L1/P'] = round(acpow, 2)
 
+        logging.info('update end')
         return True
 
     """
