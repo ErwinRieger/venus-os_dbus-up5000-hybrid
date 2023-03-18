@@ -48,6 +48,83 @@ RegGridVol = 0x3500 # B1, Electricity 1 Charging Input Voltage
 RegGridCur = 0x3501 # B2, Electricity 1 Charging Input Current
 RegGridPow = 0x3502 # B3/B4, Electricity 1 Charging Input Power L, AC-DC charging module--AC input current power
 
+#
+# State Registers
+#
+# RegGridChargerState': 1026 0x402 -> D10 + D1 set -> "Hardware over-voltage" + "Faults"
+#
+"""
+B18 Electricity 1 Charging Status 3511
+* D15~D14, 00 Normal input voltage, 01 Low input voltage, 02 High input voltage, 03 No connect to the input power, etc.
+* D13~D12, Output power 00-Light load, 01-Medium load, 02-Nominal load, 03- Overload
+* D5 Busbar over-voltage,
+* D6 Busbar under-voltage,
+* D7 Input over current,
+* D8 abnormal output voltage,
+* D9 Heat sink overheating,
+* D10 Hardware over-voltage,
+* D11 Short circuit,
+* D4 Low temperature,
+* D3~2 Charging status 00 No charging, 01 Float charging, 02 Boost charging, 03 Equalizing charging
+* D1. 0 Normal, 1 Faults
+* D0. 1 Run, 0 Standby
+"""
+RegGridChargerState = 0x3511
+
+
+"""
+B36 Load Output Status 3523
+* D15~D14, 00 Normal input voltage, 01 Low input voltage, 02 High input voltage, 03 No connect to the input power, etc.
+* D13~D12, Output power 00-Light load, 01-Medium load, 02-Nominal load, 03- Overload
+* D5 Output fail, 
+* D6 High voltage side short-circuit, 
+* D7 Input over-current, 
+* D8 Abnormal Output voltage, 
+* D9 Unable to stop discharge, 
+* D10 Unable to discharge,
+* D11 short-circuit, 
+* D4 Abnormal frequency, 
+* D3 High temperature, 
+* D2 Low temperature.
+* D1. 0 Normal, 1 Faults
+* D0. 1 Run, 0 Standby
+"""
+RegLoadState = 0x3523
+
+
+"""
+B90 PV 1 Charging Device 1 Work Status  3559 
+* D15~D14 Input voltage status. 00 Normal, 01 Without input power, 02H High input voltage, 03H Error input voltage.
+* D13 Charging MOS tube short circuit, 
+* D12 Charging or anti-reverse MOS tube open circuit
+* D11 Anti-reverse MOS tube short circuit, 
+* D10 Input over current, 
+* D9 Load over current when charges the device connected with load, 
+* D8 Load short- circuit, 
+* D7 Load MOS tube short-circuit
+* D3~2 Charging status 00 No charging, 01 Float charging, 02 Boost charging, 03 Equalizing charging
+* D4. PV Input Short Circuit(Add in 9/16/2013)
+* D5. LED Load Open Circuit(Add in 8/12/2013)
+* D6. Three-way Circuit Imbalance(Add in 8/12/2013)
+* D1. 0 Normal, 1 Faults
+* D0. 1 Run, 0 Standby
+"""
+RegPVChargerState = 0x3559
+
+
+"""
+B137 Battery 1 Status 3589 
+* D3~D0, 01H Over voltage, 00H Normal, 02H Under voltage, 03H Over discharge, 04H Faults(BMS Protection) 
+* D7~D4, 00H Normal, 01H Over temperature (exceeds the high temperature alarm value), 02H Low temperature(lower than the low temperature alarm value), 
+* D8, Battery internal resistance abnormal 1, normal 0; 
+* D9 Lithium battery charging protection; 
+* D10 Lithium battery discharging protection.
+* D15, 1-Nominal voltage identification error(The relationship between electricity and PV charging for batteries)
+"""
+RegBattState = 0x3589
+
+
+
 def noround(v, x):
     return v
 
@@ -336,7 +413,7 @@ class UP5000(object):
 
         bacur_real = self.up.readReg(RegBACur, "RegBACur", signed=True) # note: no readLong here
 
-        if pvpow != None and bavol != None and bacur_real != None:
+        if pvpow != None and bavol and bacur_real != None:
 
             bacur_pv = (pvpow / bavol)
 
@@ -359,6 +436,80 @@ class UP5000(object):
         baSoc = self.up.readReg(RegBASoc, "RegBASoc")
         if baSoc != None:
             self._dbusserviceInverter['/Soc'] = noround(baSoc*100, 2)
+
+        # Log state bits
+        #
+        # AC Grid Charger
+        #
+        state = self.up.readReg1(RegGridChargerState , "RegGridChargerState")
+        if state != None:
+            logging.info(f"     * Running: {(state & 0b01) > 0}")
+            logging.info(f"     * Fault  : {(state & 0b10) > 0}")
+            logging.info(f"     * HOV    : {(state & 0b10000000000) > 0} (Hardware over-voltage)")
+
+            usedbits = 0b10000000011
+            unUsedbits = state & ~usedbits
+            if unUsedbits:
+                logging.info(f"     * Warning: unused state bits: {unUsedbits:x}")
+
+        #
+        # PV Charger
+        #
+        state = self.up.readReg1(RegPVChargerState , "RegPVChargerState")
+        if state != None:
+            logging.info(f"     * Running   : {(state & 0b01) > 0}")
+            logging.info(f"     * Fault     : {(state & 0b10) > 0}")
+
+            chargState = state & 0xC
+            if chargState == 0x0:
+                logging.info(f"     * Charg mode: Idle")
+            elif chargState == 0x1:
+                logging.info(f"     * Charg mode: Float charging")
+            elif chargState == 0x2:
+                logging.info(f"     * Charg mode: Boost charging")
+            else:
+                logging.info(f"     * Charg mode: Equalizing charging")
+
+            inpState = state & 0xC000
+            if inpState == 0x0:
+                logging.info(f"     * Input Voltage: Normal")
+            elif inpState == 0x1:
+                logging.info(f"     * Input Voltage: Without input")
+            elif inpState == 0x2:
+                logging.info(f"     * Input Voltage: High input voltage")
+            else:
+                logging.info(f"     * Input Voltage: Error input voltage")
+
+            usedbits = 0b1100000000001111
+            unUsedbits = state & ~usedbits
+            if unUsedbits:
+                logging.info(f"     * Warning: unused state bits: {unUsedbits:x}")
+
+        #
+        # Battery
+        #
+        state = self.up.readReg1(RegBattState, "RegBattState")
+        if state != None:
+            logging.info(f"     * Under voltage: {(state & 0b10) > 0}")
+
+            usedbits = 0b10
+            unUsedbits = state & ~usedbits
+            if unUsedbits:
+                logging.info(f"     * Warning: unused state bits: {unUsedbits:x}")
+
+        #
+        # AC Load output
+        #
+        state = self.up.readReg1(RegLoadState , "RegLoadState")
+        if state != None:
+            logging.info(f"     * Running          : {(state & 0b01) > 0}")
+            logging.info(f"     * Fault            : {(state & 0b10) > 0}")
+            logging.info(f"     * Low input voltage: {(state & 0b0100000000000000) > 0}") # 0x4000
+
+            usedbits = 0b0100000000000011
+            unUsedbits = state & ~usedbits
+            if unUsedbits:
+                logging.info(f"     * Warning: unused state bits: {unUsedbits:x}")
 
         logging.info('update end')
         return True
