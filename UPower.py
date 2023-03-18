@@ -141,6 +141,21 @@ class UPower:
             except IOError:
                     return -2
 
+        # read integer register (scale = 1)
+        def readReg1(self,register, log="", signed=False):
+
+            try:
+                    reading = self.instrument.read_register(register, 0, 4, signed=signed)
+            except IOError:
+                    if log:
+                        logging.debug(f"Error reading register 0x{register:x}, '{log}'")
+                    return None
+
+            if log:
+                logging.debug(f"Reading register 0x{register:x}, '{log}': {reading} 0x{reading:x}")
+
+            return reading
+
         # read informational register
         def readReg(self,register, log="", signed=False):
 
@@ -160,8 +175,8 @@ class UPower:
         # xxx positive values only.
         def readLong(self, register, log=""):
 
-            low = self.readReg(register, log)
-            high = self.readReg(register+1, log)
+            low = self.readReg(register)
+            high = self.readReg(register+1)
 
             if low == None or high == None:
                 if log:
