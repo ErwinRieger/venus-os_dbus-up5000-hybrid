@@ -359,6 +359,13 @@ class UP5000(object):
         logging.info('update...')
 
         #
+        # Cell-voltage-based Battery manaement
+        #
+        # Info/MaxChargeVoltage                                                                                                                                                                                                                          55.2
+        # Info/MaxDischargeCurrent 
+
+
+        #
         # AC Input (Grid), inverter
         #
         gridvol = self.up.readReg(RegGridVol, "RegGridVol")
