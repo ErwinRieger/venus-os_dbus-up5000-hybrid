@@ -20,5 +20,43 @@ For example (dbus-spy):
 It uses the rs485 modbus interface of the up5000 hybrid inverter.   
 
 
-todo: some screenshots of victron venus-os 
+Some venus-os screenshots of a offgridtec hybrid system:
+
+"Remote Console":
+
+.. image:: images/img1.png
+   :width: 400px
+   :target: images/img1.png
+
+
+.. image:: images/img2.png
+   :width: 400px
+   :target: images/img2.png
+
+
+.. image:: images/img3.png
+   :width: 400px
+   :target: images/img3.png
+
+
+.. image:: images/img4.png
+   :width: 400px
+   :target: images/img4.png
+
+
+.. image:: images/img5.png
+   :width: 400px
+   :target: images/img5.png
+
+.. image:: images/img6.png
+   :width: 400px
+   :target: images/img6.png
+
+Victron VRM:
+
+.. image:: images/img7.png
+   :width: 500px
+   :target: images/img7.png
+
+
 
