@@ -410,7 +410,7 @@ class UP5000(object):
             logging.info(f"update(): MaxChargeVoltage info from BMS: {maxCV} V")
             # set boost, equalize and bost-reconnect voltages to charging
             # voltage from bms
-            self.setChargingVoltage(maxCV)
+            self.setChargingVoltage(round(maxCV, 0.1)) # modbus precision
         else:
             logging.info("update(): no /Info/MaxChargeVoltage info from BMS!")
             # set boost, equalize and bost-reconnect voltages to a save value
