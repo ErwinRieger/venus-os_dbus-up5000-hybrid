@@ -361,13 +361,17 @@ class UP5000(object):
     def setChargingVoltage(self, vc):
 
         # get current setting
-        curcv = self.up.readReg(RegVCtrl_ECV, "RegVCtrl_ECV")
+        curcv = self.up.readParam(RegVCtrl_ECV)
 
         if curcv != None:
 
+            logging.info(f'setChargingVoltage(): cur charging voltage: {curcv}.')
+
             if vc < curcv:
 
-                self.up.writeParam(RegVCtrl_BVR, vc) # RegVCtrl_BVR = 0x961B # D13, Boost Reconnect Charging Voltage
+                logging.info(f'setChargingVoltage(): decrease charging voltage to: {vc}.')
+
+                self.up.writeParam(RegVCtrl_BVR, vc-0.1) # RegVCtrl_BVR = 0x961B # D13, Boost Reconnect Charging Voltage
 
                 self.up.writeParam(RegVCtrl_ECV, vc) # RegVCtrl_ECV = 0x9618 # D10, Equalize Charging Voltage
                 self.up.writeParam(RegVCtrl_BCV, vc) # RegVCtrl_BCV = 0x9619 # D11, Boost Charging Voltage 
@@ -375,14 +379,16 @@ class UP5000(object):
 
             elif vc > curcv:
 
+                logging.info(f'setChargingVoltage(): increase charging voltage to: {vc}.')
+
                 self.up.writeParam(RegVCtrl_ECV, vc) # RegVCtrl_ECV = 0x9618 # D10, Equalize Charging Voltage
                 self.up.writeParam(RegVCtrl_BCV, vc) # RegVCtrl_BCV = 0x9619 # D11, Boost Charging Voltage 
                 self.up.writeParam(RegVCtrl_FCV, vc) # RegVCtrl_FCV = 0x961A # D12, Float Charging Voltage
 
-                self.up.writeParam(RegVCtrl_BVR, vc) # RegVCtrl_BVR = 0x961B # D13, Boost Reconnect Charging Voltage
+                self.up.writeParam(RegVCtrl_BVR, vc-0.1) # RegVCtrl_BVR = 0x961B # D13, Boost Reconnect Charging Voltage
 
-            else:
-                pass
+            # else:
+                # logging.info(f'setChargingVoltage(): charging voltage {vc} did not change.')
 
     def update(self):
 
@@ -404,7 +410,7 @@ class UP5000(object):
             logging.info(f"update(): MaxChargeVoltage info from BMS: {maxCV} V")
             # set boost, equalize and bost-reconnect voltages to charging
             # voltage from bms
-            self.setChargingVoltage(54.4)
+            self.setChargingVoltage(maxCV)
         else:
             logging.info("update(): no /Info/MaxChargeVoltage info from BMS!")
             # set boost, equalize and bost-reconnect voltages to a save value
