@@ -48,6 +48,12 @@ RegGridVol = 0x3500 # B1, Electricity 1 Charging Input Voltage
 RegGridCur = 0x3501 # B2, Electricity 1 Charging Input Current
 RegGridPow = 0x3502 # B3/B4, Electricity 1 Charging Input Power L, AC-DC charging module--AC input current power
 
+# Charger control
+RegVCtrl_ECV = 0x9618 # D10, Equalize Charging Voltage
+RegVCtrl_BCV = 0x9619 # D11, Boost Charging Voltage 
+RegVCtrl_FCV = 0x961A # D12, Float Charging Voltage
+RegVCtrl_BVR = 0x961B # D13, Boost Reconnect Charging Voltage
+
 #
 # State Registers
 #
@@ -352,6 +358,32 @@ class UP5000(object):
         dbusservice.add_path('/HardwareVersion', 0)
         dbusservice.add_path('/Connected', 1)
 
+    def setChargingVoltage(self, vc):
+
+        # get current setting
+        curcv = self.up.readReg(RegVCtrl_ECV, "RegVCtrl_ECV")
+
+        if curcv != None:
+
+            if vc < curcv:
+
+                self.up.writeParam(RegVCtrl_BVR, vc) # RegVCtrl_BVR = 0x961B # D13, Boost Reconnect Charging Voltage
+
+                self.up.writeParam(RegVCtrl_ECV, vc) # RegVCtrl_ECV = 0x9618 # D10, Equalize Charging Voltage
+                self.up.writeParam(RegVCtrl_BCV, vc) # RegVCtrl_BCV = 0x9619 # D11, Boost Charging Voltage 
+                self.up.writeParam(RegVCtrl_FCV, vc) # RegVCtrl_FCV = 0x961A # D12, Float Charging Voltage
+
+            elif vc > curcv:
+
+                self.up.writeParam(RegVCtrl_ECV, vc) # RegVCtrl_ECV = 0x9618 # D10, Equalize Charging Voltage
+                self.up.writeParam(RegVCtrl_BCV, vc) # RegVCtrl_BCV = 0x9619 # D11, Boost Charging Voltage 
+                self.up.writeParam(RegVCtrl_FCV, vc) # RegVCtrl_FCV = 0x961A # D12, Float Charging Voltage
+
+                self.up.writeParam(RegVCtrl_BVR, vc) # RegVCtrl_BVR = 0x961B # D13, Boost Reconnect Charging Voltage
+
+            else:
+                pass
+
     def update(self):
 
         if not self.devIsOpen():
@@ -370,8 +402,13 @@ class UP5000(object):
         maxCV = self._dbusmonitor.get_value(self.batt_service, "/Info/MaxChargeVoltage")
         if maxCV != None:
             logging.info(f"update(): MaxChargeVoltage info from BMS: {maxCV} V")
+            # set boost, equalize and bost-reconnect voltages to charging
+            # voltage from bms
+            self.setChargingVoltage(54.4)
         else:
             logging.info("update(): no /Info/MaxChargeVoltage info from BMS!")
+            # set boost, equalize and bost-reconnect voltages to a save value
+            self.setChargingVoltage(54.4)
 
         # Discharging 
         # input: bms.Info/MaxDischargeCurrent 
@@ -514,11 +551,16 @@ class UP5000(object):
         #
         # Battery
         #
+        # @4000000064201fb202c2a464 26.03.23_12:34:16_CEST DEBUG:root:Reading register 0x3589, 'RegBattState': 3 0x3
+        # @4000000064201fb202cec1f4 26.03.23_12:34:16_CEST INFO:root:     * Under voltage: True
+        # @4000000064201fb202e5b10c 26.03.23_12:34:16_CEST INFO:root:     * Warning: unused state bits: 1
+
         state = self.up.readReg1(RegBattState, "RegBattState")
         if state != None:
             logging.info(f"     * Under voltage: {(state & 0b10) > 0}")
+            logging.info(f"     * Under voltage: {(state & 0b10) > 0}")
 
-            usedbits = 0b10
+            usedbits = 0b11
             unUsedbits = state & ~usedbits
             if unUsedbits:
                 logging.info(f"     * Warning: unused state bits: {unUsedbits:x}")
