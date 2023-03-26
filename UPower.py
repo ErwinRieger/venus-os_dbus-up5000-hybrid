@@ -191,12 +191,16 @@ class UPower:
             return reading
 
         # read parameter
-        def readParam(self,register,decimals=2):
+        def readParam(self,register,decimals=2, log=""):
+
             try:
-                    reading = self.instrument.read_register(register, decimals, 3)
-                    return reading
+                reading = self.instrument.read_register(register, decimals, 3)
             except IOError:
-                    return -2
+                if log:
+                    logging.debug(f"Error reading long register 0x{register:x}, '{log}'")
+                return None
+
+            return reading
 
         # write parameter
         def writeParam(self,register,value):
@@ -205,12 +209,6 @@ class UPower:
                     return 0
             except IOError:
                     return -2
-
-        ### methods for obtaining parameters
-        def getBatteryType(self):
-                batttype = self.readParam(UP_BatteryType)
-                if (batttype < 0): return -1
-                return UP_BatteryTypes[int(batttype)]
 
         def setBatteryType(self, newBattType = "LiFePO4"):
                 """Valid battery types: User, Sealed, GEL, Flooded, LiFePO4, MnNiCo"""
@@ -221,21 +219,10 @@ class UPower:
                 if (self.writeParam(UP_BatteryType, int(battno)) < 0):  return -2
                 return battno
 
-        def getBatteryCapacity(self):
-                value = self.readParam(UP_BatteryCapacity)
-                if (value < 0): return -1
-                return int(value*100)
-
         def setBatteryCapacity(self, newCapacity = 100):
                 """Battery capacity in Ah"""
                 if (self.writeParam(UP_BatteryCapacity, int(newCapacity/100)) < 0):     return -2
                 return newCapacity
-
-        # charge priority modes
-        def getChargePriority(self):
-                pri = self.readParam(UP_ChargePriority)
-                if (pri < 0) : return pri
-                return PriorityModes[int(pri)]
 
         def setChargePriority(self, newPri = "Solar Priority"):
                 try:

@@ -165,7 +165,6 @@ class UP5000(object):
 
 	    # Get dynamic servicename for serial-battery
         serviceList = self._get_service_having_lowest_instance('com.victronenergy.battery')
-        print(serviceList)
         if not serviceList:
             # Restart process
             logging.info("service com.victronenergy.battery not registered yet, exiting...")
@@ -361,7 +360,7 @@ class UP5000(object):
     def setChargingVoltage(self, vc):
 
         # get current setting
-        curcv = self.up.readParam(RegVCtrl_ECV)
+        curcv = self.up.readParam(RegVCtrl_ECV, log="RegVCtrl_ECV")
 
         if curcv != None:
 
