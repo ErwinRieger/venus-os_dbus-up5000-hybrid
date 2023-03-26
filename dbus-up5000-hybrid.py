@@ -369,9 +369,9 @@ class UP5000(object):
         # 
         maxCV = self._dbusmonitor.get_value(self.batt_service, "/Info/MaxChargeVoltage")
         if maxCV != None:
-            logging.info('update(): MaxChargeVoltage info from BMS: {maxCV} V')
+            logging.info(f"update(): MaxChargeVoltage info from BMS: {maxCV} V")
         else:
-            logging.info('update(): no /Info/MaxChargeVoltage info from BMS!')
+            logging.info("update(): no /Info/MaxChargeVoltage info from BMS!")
 
         # Discharging 
         # input: bms.Info/MaxDischargeCurrent 
@@ -379,9 +379,9 @@ class UP5000(object):
         # 
         maxDC = self._dbusmonitor.get_value(self.batt_service, "/Info/MaxDischargeCurrent")
         if maxDC != None:
-            logging.info('update(): MaxDischargeCurrent info from BMS: {maxDC} A')
+            logging.info(f"update(): MaxDischargeCurrent info from BMS: {maxDC} A")
         else:
-            logging.info('update(): no /Info/MaxDischargeCurrent info from BMS!')
+            logging.info("update(): no /Info/MaxDischargeCurrent info from BMS!")
 
 
         #
