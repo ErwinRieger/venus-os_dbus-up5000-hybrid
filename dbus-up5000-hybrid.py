@@ -54,6 +54,12 @@ RegVCtrl_BCV = 0x9619 # D11, Boost Charging Voltage
 RegVCtrl_FCV = 0x961A # D12, Float Charging Voltage
 RegVCtrl_BVR = 0x961B # D13, Boost Reconnect Charging Voltage
 
+# Inverter control
+# D17 Low Voltage Disconnect Voltage VCtrl_LVD 961F                   inverter schaltet aus
+RegVCtrl_LVD = 0x961F
+# D14 Low Voltage Reconnect Voltage VCtrl_LVR 961C 1                  inverter schaltet wieder ein
+RegVCtrl_LVR = 0x961C
+
 #
 # State Registers
 #
@@ -389,6 +395,44 @@ class UP5000(object):
             # else:
                 # logging.info(f'setChargingVoltage(): charging voltage {vc} did not change.')
 
+    def setDischargeCurrent(self, dc):
+
+        if dc == 0:
+
+            # turn off inverter
+            base_volt = 52.6
+
+        else: # dc > 0 and dc == None
+
+            # turn on inverter
+            # D17 Low Voltage Disconnect Voltage VCtrl_LVD 961F                   inverter schaltet aus           --> 50.5/3.15625 v
+            # D14 Low Voltage Reconnect Voltage VCtrl_LVR 961C 1                  inverter schaltet wieder ein    --> 51.5/3.21875 v
+            base_volt = 50.5
+
+        # get current setting
+        curlvd = self.up.readParam(RegVCtrl_LVD, log="RegVCtrl_LVD")
+
+        if curlvd != None:
+
+            logging.info(f'setDischargeCurrent(): cur Low Voltage Disconnect Voltage: {curlvd}.')
+
+            if base_volt < curlvd:
+
+                logging.info(f'setDischargeCurrent(): decrease Low Voltage Disconnect  to: {base_volt}.')
+
+                self.up.writeParam(RegVCtrl_LVD, base_volt)
+                self.up.writeParam(RegVCtrl_LVR, base_volt+1)
+
+            elif base_volt > curlvd:
+
+                logging.info(f'setDischargeCurrent(): Low Voltage Disconnect  voltage to: {base_volt}.')
+
+                self.up.writeParam(RegVCtrl_LVR, base_volt+1)
+                self.up.writeParam(RegVCtrl_LVD, base_volt)
+
+            # else:
+                # logging.info(f'setDischargeCurrent(): charging voltage {base_volt} did not change.')
+
     def update(self):
 
         if not self.devIsOpen():
@@ -420,10 +464,8 @@ class UP5000(object):
         # output: up5000 C9 "Output Priority Mode" UP-OSP 9608 (0 Inverter priority 1 Utility priority)
         # 
         maxDC = self._dbusmonitor.get_value(self.batt_service, "/Info/MaxDischargeCurrent")
-        if maxDC != None:
-            logging.info(f"update(): MaxDischargeCurrent info from BMS: {maxDC} A")
-        else:
-            logging.info("update(): no /Info/MaxDischargeCurrent info from BMS!")
+        logging.info(f"update(): MaxDischargeCurrent info from BMS: {maxDC} A")
+        self.setDischargeCurrent(maxDC)
 
 
         #
