@@ -557,16 +557,28 @@ class UP5000(object):
         #
         # Battery
         #
-        # @4000000064201fb202c2a464 26.03.23_12:34:16_CEST DEBUG:root:Reading register 0x3589, 'RegBattState': 3 0x3
-        # @4000000064201fb202cec1f4 26.03.23_12:34:16_CEST INFO:root:     * Under voltage: True
-        # @4000000064201fb202e5b10c 26.03.23_12:34:16_CEST INFO:root:     * Warning: unused state bits: 1
-
         state = self.up.readReg1(RegBattState, "RegBattState")
         if state != None:
-            logging.info(f"     * Under voltage: {(state & 0b10) > 0}")
-            logging.info(f"     * Under voltage: {(state & 0b10) > 0}")
 
-            usedbits = 0b11
+            # D3~D0, 
+            # 00H Normal,
+            # 01H Over voltage,
+            # 02H Under voltage,
+            # 03H Over discharge,
+            # 04H Faults(BMS Protection)
+            batState = state & 0x7
+            if batState == 0x0:
+                logging.info(f"     * Batt state: Normal")
+            elif batState == 0x1:
+                logging.info(f"     * Batt state: Over voltage")
+            elif batState == 0x2:
+                logging.info(f"     * Batt state: Under voltage")
+            elif batState == 0x3:
+                logging.info(f"     * Batt state: Over discharge")
+            else:
+                logging.info(f"     * Batt state: Faults(BMS Protection)")
+
+            usedbits = 0b111
             unUsedbits = state & ~usedbits
             if unUsedbits:
                 logging.info(f"     * Warning: unused state bits: {unUsedbits:x}")
