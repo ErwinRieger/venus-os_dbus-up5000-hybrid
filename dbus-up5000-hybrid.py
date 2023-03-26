@@ -27,6 +27,7 @@ from UPower import UPower            # xxx use own methods...
 #
 
 # UP5000 Modbus registers
+# RegInvInputVol = 0x351d # B30, DC-AC discharging module-Current input voltage
 RegACVol = 0x3521 # B34 Load Output Voltage
 RegACCur = 0x3522 # Load Output Current
 # XXX there is no "Load Output Power" register, compute it from voltage and current
@@ -38,7 +39,6 @@ RegPVCur = 0x354a # B75
 RegPVPow = 0x354b # Long B76/B77
 
 # battery voltage
-# RegBAVol = 0x351d # B30, DC-AC discharging module-Current input voltage, seems the same as battery voltage B128
 RegBAVol = 0x3580 # B128, Current system battery voltage
 RegBACur = 0x3581 # Long B129/B130 Battery 1 Current L, It is positive when charging and negative when discharging.
 RegBASoc = 0x3586 # Long B129/B130 Battery 1 Current L, It is positive when charging and negative when discharging.
@@ -137,19 +137,11 @@ class UP5000(object):
         # servicenameInverter=f'com.victronenergy.multi.{dev}'
         servicenameInverter=f'com.victronenergy.vebus.{dev}'
 
-        logging.debug("Opening serial interface xxx for modbus...")
+        logging.debug(f"Opening serial interface {dev} for modbus...")
         self.device = "/dev/" + dev
         self.up = UPower(device=self.device)
         if self.up.connect() < 0:
             logging.warning("Cant open rs485 interface {device}, exiting")
-            sys.exit(0)
-
-        logging.debug("Reading initial values to test connection...")
-        pvvol = self.up.readReg(RegPVVol, "RegPVVol")
-        pvcur = self.up.readReg(RegPVCur, "RegPVCur")
-        loadVol = self.up.readReg(RegACVol, "RegACVol")
-        accur = self.up.readReg(RegACCur, "RegACCur")
-        if pvvol == None and pvcur == None and loadVol == None and accur == None:
             sys.exit(0)
 
         logging.debug("Service %s and %s starting... " % (servicenameCharger, servicenameInverter))
@@ -165,13 +157,21 @@ class UP5000(object):
         self._dbusmonitor = DbusMonitor(dbus_tree)
 
 	# Get dynamic servicename for serial-battery
-        # serviceList = self._get_service_having_lowest_instance('com.victronenergy.battery')
-        # if not serviceList:
-            # # Restart process
-            # logging.info("service com.victronenergy.battery not registered yet, exiting...")
-            # sys.exit(0)
-        # self.batt_service = serviceList[0]
-        # logging.info("service of battery: " +  self.batt_service)
+        serviceList = self._get_service_having_lowest_instance('com.victronenergy.battery')
+        if not serviceList:
+            # Restart process
+            logging.info("service com.victronenergy.battery not registered yet, exiting...")
+            sys.exit(0)
+        self.batt_service = serviceList[0]
+        logging.info("service of battery: " +  self.batt_service)
+
+        logging.debug("Reading initial values to test modbus connection...")
+        pvvol = self.up.readReg(RegPVVol, "RegPVVol")
+        pvcur = self.up.readReg(RegPVCur, "RegPVCur")
+        loadVol = self.up.readReg(RegACVol, "RegACVol")
+        accur = self.up.readReg(RegACCur, "RegACCur")
+        if pvvol == None and pvcur == None and loadVol == None and accur == None:
+            sys.exit(0)
 
         self._dbusserviceCharger = VeDbusService(servicenameCharger, bus=dbus.bus.BusConnection.__new__(dbus.bus.BusConnection, dbus.bus.BusConnection.TYPE_SYSTEM))
         self._dbusserviceInverter = VeDbusService(servicenameInverter, bus=dbus.bus.BusConnection.__new__(dbus.bus.BusConnection, dbus.bus.BusConnection.TYPE_SYSTEM))
@@ -361,8 +361,25 @@ class UP5000(object):
         #
         # Cell-voltage-based Battery manaement
         #
-        # Info/MaxChargeVoltage                                                                                                                                                                                                                          55.2
-        # Info/MaxDischargeCurrent 
+        # Charging 
+        # input: bms.Info/MaxChargeVoltage                                                                                                                                                                                                                          55.2
+        # output: up5000 
+        # 
+        maxCV = self._dbusmonitor.get_value(self.batt_service, "/Info/MaxChargeVoltage")
+        if maxCV != None:
+            logging.info('update(): MaxChargeVoltage info from BMS: {maxCV} V')
+        else:
+            logging.info('update(): no /Info/MaxChargeVoltage info from BMS!')
+
+        # Discharging 
+        # input: bms.Info/MaxDischargeCurrent 
+        # output: up5000 C9 "Output Priority Mode" UP-OSP 9608 (0 Inverter priority 1 Utility priority)
+        # 
+        maxDC = self._dbusmonitor.get_value(self.batt_service, "/Info/MaxDischargeCurrent")
+        if maxDC != None:
+            logging.info('update(): MaxDischargeCurrent info from BMS: {maxDC} A')
+        else:
+            logging.info('update(): no /Info/MaxDischargeCurrent info from BMS!')
 
 
         #
@@ -513,6 +530,12 @@ class UP5000(object):
             logging.info(f"     * Fault            : {(state & 0b10) > 0}")
             logging.info(f"     * Low input voltage: {(state & 0b0100000000000000) > 0}") # 0x4000
 
+            # set inverter mode, inverting or passthrough
+            if state & 0b01:
+                self._dbusserviceInverter['/State'] =  9 # inverting
+            else:
+                self._dbusserviceInverter['/State'] =  8 # passthrough
+
             usedbits = 0b0100000000000011
             unUsedbits = state & ~usedbits
             if unUsedbits:
@@ -521,7 +544,6 @@ class UP5000(object):
         logging.info('update end')
         return True
 
-    """
     # returns a tuple (servicename, instance)
     def _get_service_having_lowest_instance(self, classfilter=None): 
         services = self._get_connected_service_list(classfilter=classfilter)
@@ -533,7 +555,6 @@ class UP5000(object):
         services = self._dbusmonitor.get_service_list(classfilter=classfilter)
         # self._remove_unconnected_services(services)
         return services
-    """
 
     def devIsOpen(self):
         return self.up.instrument.serial.is_open

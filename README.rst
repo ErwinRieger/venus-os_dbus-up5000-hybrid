@@ -2,7 +2,7 @@
 dbus-up5000-hybrid
 ==================
 
-A venus-os driver for offgridtec/epever/whatever up5000 hybrid converters (a Offgridtec_IC-24_IC-48, in this case).
+A venus-os driver for offgridtec/epever/avian/powmr/whatever UP5000-HM8042 hybrid inverters (a Offgridtec_IC-48, in this case).
 
 This service provides two dbus-services:
 
