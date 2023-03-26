@@ -147,31 +147,25 @@ class UP5000(object):
         logging.debug("Service %s and %s starting... " % (servicenameCharger, servicenameInverter))
 
         dummy = {'code': None, 'whenToLog': 'configChange', 'accessLevel': None}
-        # register = { '/Dc/0/Voltage': dummy, '/Dc/0/Current': dummy } 
+        register = { '/Info/MaxDischargeCurrent': dummy, '/Info/MaxChargeVoltage': dummy } 
         dbus_tree= {
             'com.victronenergy.settings': {
                 '/': dummy,
                 '/Settings/SystemSetup/AcInput1': dummy,
-            }
+            },
+            'com.victronenergy.battery': register,
         }
         self._dbusmonitor = DbusMonitor(dbus_tree)
 
-	# Get dynamic servicename for serial-battery
+	    # Get dynamic servicename for serial-battery
         serviceList = self._get_service_having_lowest_instance('com.victronenergy.battery')
+        print(serviceList)
         if not serviceList:
             # Restart process
             logging.info("service com.victronenergy.battery not registered yet, exiting...")
             sys.exit(0)
         self.batt_service = serviceList[0]
         logging.info("service of battery: " +  self.batt_service)
-
-        logging.debug("Reading initial values to test modbus connection...")
-        pvvol = self.up.readReg(RegPVVol, "RegPVVol")
-        pvcur = self.up.readReg(RegPVCur, "RegPVCur")
-        loadVol = self.up.readReg(RegACVol, "RegACVol")
-        accur = self.up.readReg(RegACCur, "RegACCur")
-        if pvvol == None and pvcur == None and loadVol == None and accur == None:
-            sys.exit(0)
 
         self._dbusserviceCharger = VeDbusService(servicenameCharger, bus=dbus.bus.BusConnection.__new__(dbus.bus.BusConnection, dbus.bus.BusConnection.TYPE_SYSTEM))
         self._dbusserviceInverter = VeDbusService(servicenameInverter, bus=dbus.bus.BusConnection.__new__(dbus.bus.BusConnection, dbus.bus.BusConnection.TYPE_SYSTEM))
@@ -288,6 +282,14 @@ class UP5000(object):
         self._dbusserviceInverter['/Mode'] = 3 # on
         self._dbusserviceInverter['/State'] =  9 # inverting
         self._dbusserviceInverter['/Soc'] = 0
+
+        logging.debug("Reading initial values to test modbus connection...")
+        pvvol = self.up.readReg(RegPVVol, "RegPVVol")
+        pvcur = self.up.readReg(RegPVCur, "RegPVCur")
+        loadVol = self.up.readReg(RegACVol, "RegACVol")
+        accur = self.up.readReg(RegACCur, "RegACCur")
+        if pvvol == None and pvcur == None and loadVol == None and accur == None:
+            sys.exit(0)
 
         #
         # Setting '/Settings/SystemSetup/AcInput1' must be set to a valid input source type (0: nothing, 1: grid, 2: generator), this 
