@@ -197,7 +197,7 @@ class UPower:
                 reading = self.instrument.read_register(register, decimals, 3)
             except IOError:
                 if log:
-                    logging.debug(f"Error reading long register 0x{register:x}, '{log}'")
+                    logging.debug(f"Error reading param register 0x{register:x}, '{log}'")
                 return None
 
             return reading
