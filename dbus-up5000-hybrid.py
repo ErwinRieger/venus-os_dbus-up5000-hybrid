@@ -169,7 +169,7 @@ class UP5000(object):
         }
         self._dbusmonitor = DbusMonitor(dbus_tree)
 
-	    # Get dynamic servicename for serial-battery
+	# Get dynamic servicename for serial-battery
         serviceList = self._get_service_having_lowest_instance('com.victronenergy.battery')
         if not serviceList:
             # Restart process
@@ -467,6 +467,10 @@ class UP5000(object):
         logging.info(f"update(): MaxDischargeCurrent info from BMS: {maxDC} A")
         self.setDischargeCurrent(maxDC)
 
+        bavol = self.up.readReg(RegBAVol, "RegBAVol")
+        if bavol != None:
+            self._dbusserviceCharger['/Dc/0/Voltage'] = noround(bavol, 2)
+            self._dbusserviceInverter['/Dc/0/Voltage'] = noround(bavol, 2)
 
         #
         # AC Input (Grid), inverter
@@ -497,6 +501,11 @@ class UP5000(object):
             logging.info("AC power: %f (%f * %f)" % (acpow, loadVol, accur))
             self._dbusserviceInverter['/Ac/Out/L1/P'] = noround(acpow, 2)
 
+            # Battery current of inverter/multi
+            if bavol:
+                bacur_inverter_computed = acpow / bavol
+                self._dbusserviceInverter['/Dc/0/Current'] = round(bacur_inverter_computed, 2)
+
         #
         # PV Input, charger
         #
@@ -516,30 +525,15 @@ class UP5000(object):
             self._dbusserviceCharger['/Pv/0/P'] = noround(pvpow, 2)
             self._dbusserviceCharger['/Yield/Power'] = noround(pvpow, 2)
 
-        bavol = self.up.readReg(RegBAVol, "RegBAVol")
-        if bavol != None:
-            self._dbusserviceCharger['/Dc/0/Voltage'] = noround(bavol, 2)
-            self._dbusserviceInverter['/Dc/0/Voltage'] = noround(bavol, 2)
-
         bacur_real = self.up.readReg(RegBACur, "RegBACur", signed=True) # note: no readLong here
 
-        if pvpow != None and bavol and bacur_real != None:
-
-            bacur_pv = (pvpow / bavol)
+        # if pvpow != None and bavol and bacur_real != None:
+        if pvpow != None and bavol:
 
             # XXX anteil AC-DC-charger?
 
-            # falls ladung, dann wird batteriestrom dem pvcharger
-            # zugeschrieben:
-            if bacur_pv > 0:
-                self._dbusserviceCharger['/Dc/0/Current'] = round(bacur_pv, 2) # positive=charging
-            else:
-                self._dbusserviceCharger['/Dc/0/Current'] = 0
-
-            bacur_inverter_computed = bacur_real - bacur_pv # bacur_pv wird über pv-lader ins "victron-system" eingespeist
-            self._dbusserviceInverter['/Dc/0/Current'] = round(bacur_inverter_computed, 2) # negative, inverter is discharging the batterie
-
-            logging.info(f"Batt current sum from up5: {bacur_real}A, without pv-charge ({bacur_pv}A): {bacur_inverter_computed}A")
+            bacur_pv = (pvpow / bavol)
+            self._dbusserviceCharger['/Dc/0/Current'] = round(bacur_pv, 2) # positive=charging
 
         # self._dbusserviceCharger['/Load/I'] = 0
 
