@@ -503,7 +503,7 @@ class UP5000(object):
 
             # Battery current of inverter/multi
             if bavol:
-                bacur_inverter_computed = acpow / bavol
+                bacur_inverter_computed = -1 * acpow / bavol # negative=dischagring
                 self._dbusserviceInverter['/Dc/0/Current'] = round(bacur_inverter_computed, 2)
 
         #
