@@ -16,6 +16,8 @@ from dbusmonitor import DbusMonitor
 from ve_utils import exit_on_error
 from UPower import UPower            # xxx use own methods...
 
+import libup
+
 # problem mit 32 bit long werten: diese werden als 2 16 bit worte übertragen
 # die jeweils mit 100 skaliert sind.
 # wertebereich eines wortes: 0xffff/100 = 655.35
@@ -159,7 +161,7 @@ class UP5000(object):
         logging.debug("Service %s and %s starting... " % (servicenameCharger, servicenameInverter))
 
         dummy = {'code': None, 'whenToLog': 'configChange', 'accessLevel': None}
-        register = { '/Info/MaxDischargeCurrent': dummy, '/Info/MaxChargeVoltage': dummy } 
+        register = { '/Info/MaxDischargeCurrent': dummy, '/Info/MaxChargeVoltage': dummy, '/Soc': dummy } 
         dbus_tree= {
             'com.victronenergy.settings': {
                 '/': dummy,
@@ -342,6 +344,9 @@ class UP5000(object):
 			processname=__file__,
 
         """
+
+        # Mqtt connection to broker on localhost
+        self.mqttSwitch = libup.MqttSwitch("cmnd/tasmota_exess_power/POWER")
 
         self.update()
 
@@ -540,6 +545,26 @@ class UP5000(object):
         baSoc = self.up.readReg(RegBASoc, "RegBASoc")
         if baSoc != None:
             self._dbusserviceInverter['/Soc'] = noround(baSoc*100, 2)
+
+        #
+        # Use excess pv power
+        #
+        # pvvol > 400v and low pv power -> pv power available (and no load and battery full)
+        # --> turn on extra load
+        #
+        # battery soc <= 98% -> not enough pv power
+        # --> turn off extra load
+        #
+        serialBattSoc = self._dbusmonitor.get_value(self.batt_service, "/Soc")
+        if pvpow != None and pvvol != None and serialBattSoc != None:
+            if pvvol >= 400 and pvpow <= 500 and serialBattSoc >= 98:
+                logging.info(f"excess power on: pvvol: {pvvol}V, pvpow: {pvpow}W, soc: {serialBattSoc}")
+                self.mqttSwitch.publish("on") # xxx errorhandling
+            elif serialBattSoc <= 98:
+                logging.info(f"excess power off: pvvol: {pvvol}V, pvpow: {pvpow}W, soc: {serialBattSoc}")
+                self.mqttSwitch.publish("off") # xxx errorhandling
+            else:
+                logging.info(f"no excess power available but keep extra power on: pvvol: {pvvol}V, pvpow: {pvpow}W, soc: {serialBattSoc}")
 
         # Log state bits
         #
