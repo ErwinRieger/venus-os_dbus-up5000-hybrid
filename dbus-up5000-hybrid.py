@@ -555,16 +555,22 @@ class UP5000(object):
         # battery soc <= 98% -> not enough pv power
         # --> turn off extra load
         #
-        serialBattSoc = self._dbusmonitor.get_value(self.batt_service, "/Soc")
-        if pvpow != None and pvvol != None and serialBattSoc != None:
-            if pvvol >= 400 and pvpow <= 500 and serialBattSoc >= 98:
-                logging.info(f"excess power on: pvvol: {pvvol}V, pvpow: {pvpow}W, soc: {serialBattSoc}")
+        if pvpow != None and pvvol != None:
+            if pvvol >= 425 and pvpow <= 500:
+                # turn load on to keep pv voltage low
+                logging.info(f"excess power on: pvvol: {pvvol}V, pvpow: {pvpow}W")
                 self.mqttSwitch.publish("on") # xxx errorhandling
-            elif serialBattSoc <= 98:
-                logging.info(f"excess power off: pvvol: {pvvol}V, pvpow: {pvpow}W, soc: {serialBattSoc}")
-                self.mqttSwitch.publish("off") # xxx errorhandling
             else:
-                logging.info(f"no excess power available but keep extra power on: pvvol: {pvvol}V, pvpow: {pvpow}W, soc: {serialBattSoc}")
+                serialBattSoc = self._dbusmonitor.get_value(self.batt_service, "/Soc")
+                if serialBattSoc != None:
+                    if pvvol >= 400 and pvpow <= 500 and serialBattSoc >= 99:
+                        logging.info(f"excess power on: pvvol: {pvvol}V, pvpow: {pvpow}W, soc: {serialBattSoc}")
+                        self.mqttSwitch.publish("on") # xxx errorhandling
+                    elif serialBattSoc <= 98:
+                        logging.info(f"excess power off: pvvol: {pvvol}V, pvpow: {pvpow}W, soc: {serialBattSoc}")
+                        self.mqttSwitch.publish("off") # xxx errorhandling
+                    else:
+                        logging.info(f"no excess power available but keep extra power on: pvvol: {pvvol}V, pvpow: {pvpow}W, soc: {serialBattSoc}")
 
         # Log state bits
         #
