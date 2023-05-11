@@ -23,7 +23,8 @@ class MqttSwitch:
         self.client.on_connect = self.on_connect
         self.client.connect(broker, port)
         self.client.loop_start()
-   
+
+        self.state = None
         self.nextUpdate = time.time()
 
     # xxx base
@@ -41,9 +42,19 @@ class MqttSwitch:
             logging.info(f"MqttSwitch.publish(): not connected!")
             return 1
 
+        t = time.time()
         status = 0
 
-        t = time.time()
+        if msg != self.state:
+            # publish instantly
+            status = self.client.publish(self.topic, msg)[0]
+            if status == 0:
+                logging.info(f"Send `{msg}` to topic `{self.topic}` ok")
+                self.state = msg
+                self.nextUpdate = t + 60
+            else:
+                logging.info(f"Failed to send message to topic {self.topic}")
+            return status
 
         if t >= self.nextUpdate:
 
