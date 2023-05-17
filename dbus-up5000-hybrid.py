@@ -552,7 +552,7 @@ class UP5000(object):
         # pvvol > 400v and low pv power -> pv power available (and no load and battery full)
         # --> turn on extra load
         #
-        # battery soc <= 98% -> not enough pv power
+        # battery soc <= 95% -> not enough pv power
         # --> turn off extra load
         #
         if pvpow != None and pvvol != None:
@@ -563,10 +563,10 @@ class UP5000(object):
             else:
                 serialBattSoc = self._dbusmonitor.get_value(self.batt_service, "/Soc")
                 if serialBattSoc != None:
-                    if pvvol >= 380 and pvpow <= 500 and serialBattSoc >= 99:
+                    if pvvol >= 380 and pvpow <= 500 and serialBattSoc >= 98:
                         logging.info(f"excess power on: pvvol: {pvvol}V, pvpow: {pvpow}W, soc: {serialBattSoc}")
                         self.mqttSwitch.publish("on") # xxx errorhandling
-                    elif serialBattSoc <= 98:
+                    elif serialBattSoc <= 97:
                         logging.info(f"excess power off: pvvol: {pvvol}V, pvpow: {pvpow}W, soc: {serialBattSoc}")
                         self.mqttSwitch.publish("off") # xxx errorhandling
                     else:
