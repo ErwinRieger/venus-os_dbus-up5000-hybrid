@@ -556,14 +556,18 @@ class UP5000(object):
         # --> turn off extra load
         #
         if pvpow != None and pvvol != None:
-            if pvvol >= 400 and pvpow <= 500:
+            if pvvol > 425:
+                # turn load on to keep pv voltage low
+                logging.info(f"excess power on: pvvol: {pvvol}V, pvpow: {pvpow}W")
+                self.mqttSwitch.publish("on") # xxx errorhandling
+            elif pvvol > 400 and pvpow <= 500:
                 # turn load on to keep pv voltage low
                 logging.info(f"excess power on: pvvol: {pvvol}V, pvpow: {pvpow}W")
                 self.mqttSwitch.publish("on") # xxx errorhandling
             else:
                 serialBattSoc = self._dbusmonitor.get_value(self.batt_service, "/Soc")
                 if serialBattSoc != None:
-                    if pvvol >= 380 and pvpow <= 500 and serialBattSoc >= 98:
+                    if pvvol > 380 and pvpow <= 500 and serialBattSoc > 98:
                         logging.info(f"excess power on: pvvol: {pvvol}V, pvpow: {pvpow}W, soc: {serialBattSoc}")
                         self.mqttSwitch.publish("on") # xxx errorhandling
                     elif serialBattSoc <= 97:
