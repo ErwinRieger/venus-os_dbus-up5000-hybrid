@@ -9,7 +9,7 @@ port = 1883
 
 class MqttSwitch:
 
-    def __init__(self, topic):
+    def __init__(self, clientId, topic):
 
         logging.info("start MQTT switch!")
 
@@ -18,7 +18,7 @@ class MqttSwitch:
         self.connected = False
 
         # xxx base
-        self.client = mqtt_client.Client("clientid99")
+        self.client = mqtt_client.Client(clientId)
         # client.username_pw_set(username, password)
         self.client.on_connect = self.on_connect
         self.client.connect(broker, port)

@@ -346,9 +346,9 @@ class UP5000(object):
         """
 
         # Mqtt connection to broker on localhost
-        self.mqttExcess = libup.MqttSwitch("cmnd/tasmota_exess_power/POWER")
-        self.mqttEmergency = libup.MqttSwitch("cmnd/tasmota_emergency_power/POWER")
-        sefl.mqttLastOff = 0
+        self.mqttExcess = libup.MqttSwitch("ExcessPower", "cmnd/tasmota_exess_power/POWER")
+        self.mqttEmergency = libup.MqttSwitch("EmergencyPower", "cmnd/tasmota_emergency_power/POWER")
+        self.mqttLastOff = 0
 
         self.update()
 
@@ -558,7 +558,7 @@ class UP5000(object):
                 logging.info(f"emergency power on: pvvol: {pvvol}V, pvpow: {pvpow}W")
                 self.mqttEmergency.publish("on") # xxx errorhandling
             else:
-                logging.info(f"emergency power off: pvvol: {pvvol}V, pvpow: {pvpow}W, soc: {serialBattSoc}")
+                logging.info(f"emergency power off: pvvol: {pvvol}V, pvpow: {pvpow}W")
                 self.mqttEmergency.publish("off") # xxx errorhandling
 
         t = time.time()
