@@ -9,7 +9,7 @@ port = 1883
 
 class MqttSwitch:
 
-    def __init__(self, clientId, topic):
+    def __init__(self, clientId, topic, rate=60):
 
         logging.info("start MQTT switch!")
 
@@ -25,6 +25,7 @@ class MqttSwitch:
         self.client.loop_start()
 
         self.state = None
+        self.rate = rate
         self.nextUpdate = time.time()
 
     # xxx base
@@ -51,7 +52,7 @@ class MqttSwitch:
             if status == 0:
                 logging.info(f"Send `{msg}` to topic `{self.topic}` ok")
                 self.state = msg
-                self.nextUpdate = t + 60
+                self.nextUpdate = t + self.rate
             else:
                 logging.info(f"Failed to send message to topic {self.topic}")
             return status
@@ -62,7 +63,7 @@ class MqttSwitch:
             status = self.client.publish(self.topic, msg)[0]
             if status == 0:
                 logging.info(f"Send `{msg}` to topic `{self.topic}` ok")
-                self.nextUpdate = t + 60
+                self.nextUpdate = t + self.rate
             else:
                 logging.info(f"Failed to send message to topic {self.topic}")
 

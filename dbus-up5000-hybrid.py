@@ -142,6 +142,25 @@ RegBattState = 0x3589
 def noround(v, x):
     return v
 
+# turn on load immediateley
+# turn off is delayed, keep load on for 60 seconds, at least
+class RateLimitMqttSwitch(libup.MqttSwitch):
+
+    def __init__(self, clientId, topic):
+
+        libup.MqttSwitch.__init__(self, clientId, topic)
+        self.nextOff = 0
+
+    def publish(self, msg):
+
+        t = time.time()
+        if msg == "on":
+            libup.MqttSwitch.publish(self, msg)
+            self.nextOff = t + 60
+        else:
+            if t > self.nextOff:
+                libup.MqttSwitch.publish(self, msg)
+
 class UP5000(object):
 
     def __init__(self, dev, connection='UP5000'):
@@ -347,8 +366,7 @@ class UP5000(object):
 
         # Mqtt connection to broker on localhost
         self.mqttExcess = libup.MqttSwitch("ExcessPower", "cmnd/tasmota_exess_power/POWER")
-        self.mqttEmergency = libup.MqttSwitch("EmergencyPower", "cmnd/tasmota_emergency_power/POWER")
-        self.mqttLastOff = 0
+        self.mqttEmergency = libup.MqttSwitch("EmergencyPower", "cmnd/tasmota_emergency_power/POWER", rate=20)
 
         self.update()
 
@@ -561,7 +579,6 @@ class UP5000(object):
                 logging.info(f"emergency power off: pvvol: {pvvol}V, pvpow: {pvpow}W")
                 self.mqttEmergency.publish("off") # xxx errorhandling
 
-        t = time.time()
         #
         # Use excess pv power
         #
@@ -578,7 +595,6 @@ class UP5000(object):
                     logging.info(f"excess power on: pvvol: {pvvol}V, pvpow: {pvpow}W, soc: {serialBattSoc}")
                     self.mqttExcess.publish("on") # xxx errorhandling
                 elif serialBattSoc <= 97:
-                    # self.mqttLastOff = 0
                     logging.info(f"excess power off: pvvol: {pvvol}V, pvpow: {pvpow}W, soc: {serialBattSoc}")
                     self.mqttExcess.publish("off") # xxx errorhandling
                 else:
