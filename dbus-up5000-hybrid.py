@@ -594,6 +594,8 @@ class UP5000(object):
                 if pvvol > 380 and pvpow <= 500 and serialBattSoc > 98:
                     logging.info(f"excess power on: pvvol: {pvvol}V, pvpow: {pvpow}W, soc: {serialBattSoc}")
                     self.mqttExcess.publish("on") # xxx errorhandling
+                    if self.mqttEmergency.state == "on":
+                        self.mqttEmergency.publish("off")
                 elif serialBattSoc <= 97:
                     logging.info(f"excess power off: pvvol: {pvvol}V, pvpow: {pvpow}W, soc: {serialBattSoc}")
                     self.mqttExcess.publish("off") # xxx errorhandling
