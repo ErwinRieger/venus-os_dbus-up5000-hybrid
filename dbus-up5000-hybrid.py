@@ -567,19 +567,6 @@ class UP5000(object):
             self._dbusserviceInverter['/Soc'] = noround(baSoc*100, 2)
 
         #
-        # Limit pv voltage using emergency dummy load
-        #
-        if pvvol != None:
-
-            if pvvol > 425:
-                # turn emergency load on to lower pv voltage
-                logging.info(f"emergency power on: pvvol: {pvvol}V, pvpow: {pvpow}W")
-                self.mqttEmergency.publish("on") # xxx errorhandling
-            else:
-                logging.info(f"emergency power off: pvvol: {pvvol}V, pvpow: {pvpow}W")
-                self.mqttEmergency.publish("off") # xxx errorhandling
-
-        #
         # Use excess pv power
         #
         # pvvol > 400v and low pv power -> pv power available (and no load and battery full)
@@ -588,19 +575,32 @@ class UP5000(object):
         # battery soc <= 95% -> not enough pv power
         # --> turn off extra load
         #
+        limiterOn = False
         if pvpow != None and pvvol != None:
             serialBattSoc = self._dbusmonitor.get_value(self.batt_service, "/Soc")
             if serialBattSoc != None:
                 if pvvol > 380 and pvpow <= 500 and serialBattSoc > 98:
                     logging.info(f"excess power on: pvvol: {pvvol}V, pvpow: {pvpow}W, soc: {serialBattSoc}")
                     self.mqttExcess.publish("on") # xxx errorhandling
-                    if self.mqttEmergency.state == "on":
-                        self.mqttEmergency.publish("off")
+                    limiterOn = True
                 elif serialBattSoc <= 97:
                     logging.info(f"excess power off: pvvol: {pvvol}V, pvpow: {pvpow}W, soc: {serialBattSoc}")
                     self.mqttExcess.publish("off") # xxx errorhandling
                 else:
                     logging.info(f"no excess power available but keep extra power on: pvvol: {pvvol}V, pvpow: {pvpow}W, soc: {serialBattSoc}")
+
+        #
+        # Limit pv voltage using emergency dummy load
+        #
+        if pvvol != None:
+
+            if not limiterOn and pvvol > 425:
+                # turn emergency load on to lower pv voltage
+                logging.info(f"emergency power on: pvvol: {pvvol}V, pvpow: {pvpow}W")
+                self.mqttEmergency.publish("on") # xxx errorhandling
+            else:
+                logging.info(f"emergency power off: pvvol: {pvvol}V, pvpow: {pvpow}W")
+                self.mqttEmergency.publish("off") # xxx errorhandling
 
         # Log state bits
         #
