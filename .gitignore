@@ -1,3 +1,4 @@
 tags
 datafiles
 *.swp
+__pycache__
