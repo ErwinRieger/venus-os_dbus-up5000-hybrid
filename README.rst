@@ -17,14 +17,7 @@ For example (dbus-spy):
    com.victronenergy.solarcharger.ttyUSB1                                                                                                                                                                                    UP5000 MPPT Solar Charger
    com.victronenergy.vebus.ttyUSB1                                                                                                                                                                                                     UP5000 Inverter
 
-
-Modbus(-RTU) interface
-++++++++++++++++++++++
-
-It uses the rs485 modbus interface of the up5000 hybrid inverter (so a rs485<->USB converter
-is neccessary to connect the inverter to the system).   
-
-The folder "doc" contains the up5000 modbus register description.
+.. contents::
 
 Screenshots
 +++++++++++
@@ -67,10 +60,63 @@ Victron VRM:
    :width: 500px
    :target: images/img7.png
 
+Modbus(-RTU) interface
+++++++++++++++++++++++
+
+It uses the rs485 modbus interface of the up5000 hybrid inverter (so a rs485<->USB converter
+is neccessary to connect the inverter to the system).   
+
+The folder "doc" contains the up5000 modbus register description.
+
+Startup
++++++++
+
+Manual start for testing, usb-serial device to use is given by commandline argument:
+
+code-block:: sh
+
+   python3 /opt/victronenergy/dbus-up5000-hybrid/dbus-up5000-hybrid.py ttyUSB0
+
+To use the venus-os "serial starter", you have to adjust udev-rules and the venus-os configuration
+file serial-starter.conf:
+
+code-block:: sh
+
+   Add this to /etc/udev/rules.d/serial-starter.rules (adjust ID_MODEL for your rs485 - usbserial 
+   converter):
+
+   ...
+   # UP5000 on rs485/modbus
+   ACTION=="add", ENV{ID_BUS}=="usb", ENV{ID_MODEL}=="USB2.0-Ser_", ENV{VE_SERVICE}="up5000"
+   ...
+
+   Add this to /etc/venus/serial-starter.conf:
+
+   ...
+   service up5000          dbus-up5000-hybrid
+   ...
+
+DVCC
+++++
+
+The BMS-supplied values for MaxChargeVoltage (/Info/MaxChargeVoltage) and MaxDischargeCurrent
+(/Info/MaxDischargeCurrent) are used to control the up5000 PV-charger.
+
+:Todo: Make this function configurable.
+
+Excess Power Relay
+++++++++++++++++++
+
+The up5000 service is able to control a shelly-like relais (tasmota) using MQTT.
+This is used to switch a external load when excess power is available (e.g. when the battery
+is full and there is still pv-power available).
+
+:Todo: More description, make this function configurable.
+
 Logfile
 +++++++
 
-As all venus-os services, the dbus-up5000-hybrid creates a logfile in 
+As all venus-os services, the dbus-up5000-hybrid process creates a logfile in 
 /var/log/dbus-up5000-hybrid.<device>/current (/var/log/dbus-up5000-hybrid.ttyUSB0/current for example). 
 
 This can be used for debugging or for informational purposes. Example output:
