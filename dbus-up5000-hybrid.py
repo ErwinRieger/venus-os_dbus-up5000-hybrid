@@ -466,11 +466,11 @@ class UP5000(object):
         logging.info('update...')
 
         #
-        # Cell-voltage-based Battery manaement
+        # DVCC, Cell-voltage-based Battery management
         #
         # Charging 
         # input: bms.Info/MaxChargeVoltage                                                                                                                                                                                                                          55.2
-        # output: up5000 
+        # output: several up5000 modbus registers, see setChargingVoltage()
         # 
         maxCV = self._dbusmonitor.get_value(self.batt_service, "/Info/MaxChargeVoltage")
         if maxCV != None:
