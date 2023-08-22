@@ -73,14 +73,14 @@ Startup
 
 Manual start for testing, usb-serial device to use is given by commandline argument:
 
-code-block:: sh
+::
 
    python3 /opt/victronenergy/dbus-up5000-hybrid/dbus-up5000-hybrid.py ttyUSB0
 
 To use the venus-os "serial starter", you have to adjust udev-rules and the venus-os configuration
 file serial-starter.conf:
 
-code-block:: sh
+::
 
    Add this to /etc/udev/rules.d/serial-starter.rules (adjust ID_MODEL for your rs485 - usbserial 
    converter):
