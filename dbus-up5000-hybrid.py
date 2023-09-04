@@ -366,6 +366,7 @@ class UP5000(object):
 
         # Mqtt connection to broker on localhost
         self.mqttExcess = libup.MqttSwitch("ExcessPower", "cmnd/tasmota_exess_power/POWER")
+        # self.mqttPvSwitch = libup.MqttSwitch("ExcessPower", "cmnd/tasmota_exess_power/POWER")
 
         self.update()
 
