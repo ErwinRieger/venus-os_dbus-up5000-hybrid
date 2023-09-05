@@ -612,7 +612,7 @@ class UP5000(object):
             logging.info(f"     * Running   : {(state & 0b01) > 0}")
             logging.info(f"     * Fault     : {(state & 0b10) > 0}")
 
-            chargState = state & 0xC
+            chargState = (state>>2) & 0x3
             if chargState == 0x0:
                 logging.info(f"     * Charg mode: Idle")
             elif chargState == 0x1:
@@ -622,7 +622,7 @@ class UP5000(object):
             else:
                 logging.info(f"     * Charg mode: Equalizing charging")
 
-            inpState = state & 0xC000
+            inpState = (state>>14) & 0x3
             if inpState == 0x0:
                 logging.info(f"     * Input Voltage: Normal")
             elif inpState == 0x1:
