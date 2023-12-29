@@ -1,6 +1,5 @@
 
-# import random
-import time, logging, sys
+import time, logging
 
 from paho.mqtt import client as mqtt_client
 
@@ -75,9 +74,9 @@ class MqttSwitch:
 
 class TasmotaSwitch:
 
-    def __init__(self, topic):
+    def __init__(self, broker, topic):
 
-        logging.info("start TasmotaSwitch !")
+        logging.info(f"start TasmotaSwitch on broker {broker}!")
 
         self.topic = topic
 
@@ -140,7 +139,7 @@ class TasmotaSwitch:
         return status
 
     def subscribe(self):
-        # self.start, timeout
+
         def on_message(client, userdata, msg):
 
             state = msg.payload.decode().lower()
@@ -175,11 +174,11 @@ class TasmotaSwitch:
 
 class OnOffSwitch:
 
-    def __init__(self, topic, switch):
+    def __init__(self, broker, topic, switch):
 
         logging.info("start OnOffSwitch !")
 
-        self.switch = TasmotaSwitch(topic+"/"+switch)
+        self.switch = TasmotaSwitch(broker, topic+"/"+switch)
         self.state = None
 
     def pulse(self):
@@ -207,10 +206,4 @@ class OnOffSwitch:
             if not self.switch.running():
                 # of phase done, pulse done
                 self.state = None
-
-# logging.basicConfig(level=logging.DEBUG)
-# m = MqttSwitch("cmnd/tasmota_exess_power/POWER")
-# while not m.connected:
-    # time.sleep(1)
-# m.publish(sys.argv[1])
 
