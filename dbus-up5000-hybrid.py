@@ -384,7 +384,7 @@ class UP5000(object):
         dbusservice.add_path('/DeviceInstance', 1) # deviceinstance)
         dbusservice.add_path('/ProductId', 0)
         dbusservice.add_path('/ProductName', productname)
-        dbusservice.add_path('/FirmwareVersion', 0)
+        dbusservice.add_path('/FirmwareVersion', 0x146)   # Minimum version to avoid "DVCC with incompatible firmware" warning
         dbusservice.add_path('/HardwareVersion', 0)
         dbusservice.add_path('/Connected', 1)
 
@@ -470,7 +470,7 @@ class UP5000(object):
         # DVCC, Cell-voltage-based Battery management
         #
         # Charging 
-        # input: bms.Info/MaxChargeVoltage                                                                                                                                                                                                                          55.2
+        # input: bms.Info/MaxChargeVoltage 55.2
         # output: several up5000 modbus registers, see setChargingVoltage()
         # 
         maxCV = self._dbusmonitor.get_value(self.batt_service, "/Info/MaxChargeVoltage")
