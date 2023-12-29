@@ -180,7 +180,12 @@ class UP5000(object):
         logging.debug("Service %s and %s starting... " % (servicenameCharger, servicenameInverter))
 
         dummy = {'code': None, 'whenToLog': 'configChange', 'accessLevel': None}
-        register = { '/Info/MaxDischargeCurrent': dummy, '/Info/MaxChargeVoltage': dummy, '/Soc': dummy } 
+        register = { 
+                '/Info/MaxDischargeCurrent': dummy,
+                '/Info/MaxChargeVoltage': dummy,
+                '/Soc': dummy,
+                '/Voltages/Diff': dummy,
+                } 
         dbus_tree= {
             'com.victronenergy.settings': {
                 '/': dummy,
@@ -577,17 +582,19 @@ class UP5000(object):
         #
         if pvpow != None and pvvol != None:
             serialBattSoc = self._dbusmonitor.get_value(self.batt_service, "/Soc")
+            serialBattDiff = self._dbusmonitor.get_value(self.batt_service, "/Voltages/Diff")
             if serialBattSoc != None:
-                # minVol = 380 # strings in series
-                minVol = 190 # strings parallel
-                if pvvol > minVol and pvpow <= 500 and serialBattSoc > 98:
-                    logging.info(f"excess power on: pvvol: {pvvol}V, pvpow: {pvpow}W, soc: {serialBattSoc}")
+                minVol = 380 # strings in series
+                # minVol = 190 # strings parallel
+                # if pvvol > minVol and pvpow <= 500 and serialBattSoc > 98:
+                if pvvol > minVol and serialBattSoc > 99 and serialBattDiff < 0.005:
+                    logging.info(f"excess power on: pvvol: {pvvol}V, pvpow: {pvpow}W, soc: {serialBattSoc}, diff: {serialBattDiff}")
                     self.mqttExcess.publish("on") # xxx errorhandling
-                elif serialBattSoc <= 97:
-                    logging.info(f"excess power off: pvvol: {pvvol}V, pvpow: {pvpow}W, soc: {serialBattSoc}")
+                elif serialBattSoc < 97:
+                    logging.info(f"excess power off: pvvol: {pvvol}V, pvpow: {pvpow}W, soc: {serialBattSoc}, diff: {serialBattDiff}")
                     self.mqttExcess.publish("off") # xxx errorhandling
                 else:
-                    logging.info(f"no excess power available but keep extra power on: pvvol: {pvvol}V, pvpow: {pvpow}W, soc: {serialBattSoc}")
+                    logging.info(f"no excess power available but keep extra power on: pvvol: {pvvol}V, pvpow: {pvpow}W, soc: {serialBattSoc}, diff: {serialBattDiff}")
 
         # Log state bits
         #
