@@ -137,7 +137,10 @@ B137 Battery 1 Status 3589
 """
 RegBattState = 0x3589
 
+# from victron/dvcc.py:
 
+VEBUS_FIRMWARE_REQUIRED = 0x422
+VEDIRECT_FIRMWARE_REQUIRED = 0x129
 
 def noround(v, x):
     return v
@@ -207,8 +210,8 @@ class UP5000(object):
         self._dbusserviceCharger = VeDbusService(servicenameCharger, bus=dbus.bus.BusConnection.__new__(dbus.bus.BusConnection, dbus.bus.BusConnection.TYPE_SYSTEM))
         self._dbusserviceInverter = VeDbusService(servicenameInverter, bus=dbus.bus.BusConnection.__new__(dbus.bus.BusConnection, dbus.bus.BusConnection.TYPE_SYSTEM))
 
-        self.createManagementPaths(self._dbusserviceCharger, "UP5000 MPPT Solar Charger", connection)
-        self.createManagementPaths(self._dbusserviceInverter, "UP5000 Inverter", connection)
+        self.createManagementPaths(self._dbusserviceCharger, "UP5000 MPPT Solar Charger", connection, VEDIRECT_FIRMWARE_REQUIRED)
+        self.createManagementPaths(self._dbusserviceInverter, "UP5000 Inverter", connection, VEBUS_FIRMWARE_REQUIRED)
 
         # PVcharger
         self._dbusserviceCharger.add_path('/Dc/0/Voltage', 0)
@@ -378,7 +381,7 @@ class UP5000(object):
         GLib.timeout_add(5000, exit_on_error, self.update)
         # GLib.timeout_add(5000, self.update)
 
-    def createManagementPaths(self, dbusservice, productname, connection):
+    def createManagementPaths(self, dbusservice, productname, connection, firmware):
 
         # Create the management objects, as specified in the ccgx dbus-api document
         dbusservice.add_path('/Mgmt/ProcessName', __file__)
@@ -389,7 +392,7 @@ class UP5000(object):
         dbusservice.add_path('/DeviceInstance', 1) # deviceinstance)
         dbusservice.add_path('/ProductId', 0)
         dbusservice.add_path('/ProductName', productname)
-        dbusservice.add_path('/FirmwareVersion', 0x146)   # Minimum version to avoid "DVCC with incompatible firmware" warning
+        dbusservice.add_path('/FirmwareVersion', firmware)
         dbusservice.add_path('/HardwareVersion', 0)
         dbusservice.add_path('/Connected', 1)
 
