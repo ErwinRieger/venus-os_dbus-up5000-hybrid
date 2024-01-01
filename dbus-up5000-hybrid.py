@@ -137,8 +137,7 @@ B137 Battery 1 Status 3589
 """
 RegBattState = 0x3589
 
-# from victron/dvcc.py:
-
+# From victron/dvcc.py:
 VEBUS_FIRMWARE_REQUIRED = 0x422
 VEDIRECT_FIRMWARE_REQUIRED = 0x129
 
@@ -590,7 +589,7 @@ class UP5000(object):
                 minVol = 380 # strings in series
                 # minVol = 190 # strings parallel
                 # if pvvol > minVol and pvpow <= 500 and serialBattSoc > 98:
-                if pvvol > minVol and serialBattSoc > 99 and serialBattDiff < 0.005:
+                if pvvol > minVol and serialBattSoc >= 99 and serialBattDiff < 0.005:
                     logging.info(f"excess power on: pvvol: {pvvol}V, pvpow: {pvpow}W, soc: {serialBattSoc}, diff: {serialBattDiff}")
                     self.mqttExcess.publish("on") # xxx errorhandling
                 elif serialBattSoc < 97:
