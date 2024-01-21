@@ -139,7 +139,8 @@ RegBattState = 0x3589
 
 # From victron/dvcc.py:
 VEBUS_FIRMWARE_REQUIRED = 0x422
-VEDIRECT_FIRMWARE_REQUIRED = 0x129
+VEDIRECT_FIRMWARE_REQUIRED = 345 # 0x129
+# VEDIRECT_HARDWARE_VERSION = 
 
 def noround(v, x):
     return v
@@ -167,6 +168,8 @@ class UP5000(object):
 
     def __init__(self, dev, connection='UP5000'):
 
+        self.lastBASoc = 0
+
         servicenameCharger=f'com.victronenergy.solarcharger.{dev}'
         # servicenameInverter=f'com.victronenergy.inverter.{dev}'
         # servicenameInverter=f'com.victronenergy.multi.{dev}'
@@ -187,6 +190,7 @@ class UP5000(object):
                 '/Info/MaxChargeVoltage': dummy,
                 '/Soc': dummy,
                 '/Voltages/Diff': dummy,
+                '/CustomName': dummy,
                 } 
         dbus_tree= {
             'com.victronenergy.settings': {
@@ -209,12 +213,13 @@ class UP5000(object):
         self._dbusserviceCharger = VeDbusService(servicenameCharger, bus=dbus.bus.BusConnection.__new__(dbus.bus.BusConnection, dbus.bus.BusConnection.TYPE_SYSTEM))
         self._dbusserviceInverter = VeDbusService(servicenameInverter, bus=dbus.bus.BusConnection.__new__(dbus.bus.BusConnection, dbus.bus.BusConnection.TYPE_SYSTEM))
 
-        self.createManagementPaths(self._dbusserviceCharger, "UP5000 MPPT Solar Charger", connection, VEDIRECT_FIRMWARE_REQUIRED)
-        self.createManagementPaths(self._dbusserviceInverter, "UP5000 Inverter", connection, VEBUS_FIRMWARE_REQUIRED)
+        self.createManagementPaths(self._dbusserviceCharger, "UP5000 MPPT Solar Charger", connection, VEDIRECT_FIRMWARE_REQUIRED, 41074)
+        self.createManagementPaths(self._dbusserviceInverter, "UP5000 Inverter", connection, VEBUS_FIRMWARE_REQUIRED, 0)
 
         # PVcharger
         self._dbusserviceCharger.add_path('/Dc/0/Voltage', 0)
         self._dbusserviceCharger.add_path('/Dc/0/Current', 0)
+        self._dbusserviceCharger.add_path('/DeviceName', 0, description="/DeviceName", writeable=True)
         self._dbusserviceCharger.add_path('/Pv/0/V', 0)
         self._dbusserviceCharger.add_path('/Pv/0/P', 0)
         self._dbusserviceCharger.add_path('/Load/I', 0)
@@ -231,6 +236,7 @@ class UP5000(object):
 
         self._dbusserviceCharger['/Dc/0/Voltage'] = 0
         self._dbusserviceCharger['/Dc/0/Current'] = 0
+        self._dbusserviceCharger['/DeviceName'] = "UP5000 PV Charger"
         self._dbusserviceCharger['/Load/I'] = 0 # 0
         self._dbusserviceCharger['/Mode'] = 1 # on
         self._dbusserviceCharger['/NrOfTrackers'] = 1
@@ -380,7 +386,7 @@ class UP5000(object):
         GLib.timeout_add(5000, exit_on_error, self.update)
         # GLib.timeout_add(5000, self.update)
 
-    def createManagementPaths(self, dbusservice, productname, connection, firmware):
+    def createManagementPaths(self, dbusservice, productname, connection, firmware, prodid):
 
         # Create the management objects, as specified in the ccgx dbus-api document
         dbusservice.add_path('/Mgmt/ProcessName', __file__)
@@ -389,10 +395,10 @@ class UP5000(object):
 
         # Create the mandatory objects
         dbusservice.add_path('/DeviceInstance', 1) # deviceinstance)
-        dbusservice.add_path('/ProductId', 0)
+        dbusservice.add_path('/ProductId', prodid)
         dbusservice.add_path('/ProductName', productname)
         dbusservice.add_path('/FirmwareVersion', firmware)
-        dbusservice.add_path('/HardwareVersion', 0)
+        # dbusservice.add_path('/HardwareVersion', 0)
         dbusservice.add_path('/Connected', 1)
 
     def setChargingVoltage(self, vc):
@@ -554,8 +560,8 @@ class UP5000(object):
 
         pvpow = self.up.readLong(RegPVPow, "RegPVPow")
         if pvpow != None:
-            self._dbusserviceCharger['/Pv/0/P'] = noround(pvpow, 2)
-            self._dbusserviceCharger['/Yield/Power'] = noround(pvpow, 2)
+            self._dbusserviceCharger['/Pv/0/P'] = round(pvpow, 2)
+            self._dbusserviceCharger['/Yield/Power'] = round(pvpow, 2)
 
         bacur_real = self.up.readReg(RegBACur, "RegBACur", signed=True) # note: no readLong here
 
@@ -592,11 +598,16 @@ class UP5000(object):
                 if pvvol > minVol and serialBattSoc >= 99 and serialBattDiff < 0.005:
                     logging.info(f"excess power on: pvvol: {pvvol}V, pvpow: {pvpow}W, soc: {serialBattSoc}, diff: {serialBattDiff}")
                     self.mqttExcess.publish("on") # xxx errorhandling
-                elif serialBattSoc < 97:
+                # elif (bacur_pv < 25) and (serialBattSoc < 97):
+                elif self.lastBASoc and (serialBattSoc >= self.lastBASoc): # keep charging 
+                    logging.info(f"battery charging, keep excess power on: pvvol: {pvvol}V, pvpow: {pvpow}W, soc: {serialBattSoc}, diff: {serialBattDiff}, bacur_pv: {bacur_pv}")
+                elif serialBattSoc < 97: # keep charging or high soc/balancing
                     logging.info(f"excess power off: pvvol: {pvvol}V, pvpow: {pvpow}W, soc: {serialBattSoc}, diff: {serialBattDiff}")
                     self.mqttExcess.publish("off") # xxx errorhandling
                 else:
                     logging.info(f"no excess power available but keep extra power on: pvvol: {pvvol}V, pvpow: {pvpow}W, soc: {serialBattSoc}, diff: {serialBattDiff}")
+
+            self.lastBASoc = serialBattSoc
 
         # Log state bits
         #
