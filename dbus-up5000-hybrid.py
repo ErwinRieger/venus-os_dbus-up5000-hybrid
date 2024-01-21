@@ -219,7 +219,7 @@ class UP5000(object):
         # PVcharger
         self._dbusserviceCharger.add_path('/Dc/0/Voltage', 0)
         self._dbusserviceCharger.add_path('/Dc/0/Current', 0)
-        self._dbusserviceCharger.add_path('/DeviceName', 0, description="/DeviceName", writeable=True)
+        self._dbusserviceCharger.add_path('/CustomName', 0, description="/CustomName", writeable=True)
         self._dbusserviceCharger.add_path('/Pv/0/V', 0)
         self._dbusserviceCharger.add_path('/Pv/0/P', 0)
         self._dbusserviceCharger.add_path('/Load/I', 0)
@@ -236,7 +236,7 @@ class UP5000(object):
 
         self._dbusserviceCharger['/Dc/0/Voltage'] = 0
         self._dbusserviceCharger['/Dc/0/Current'] = 0
-        self._dbusserviceCharger['/DeviceName'] = "UP5000 PV Charger"
+        self._dbusserviceCharger['/CustomName'] = "UP5000 PV Charger"
         self._dbusserviceCharger['/Load/I'] = 0 # 0
         self._dbusserviceCharger['/Mode'] = 1 # on
         self._dbusserviceCharger['/NrOfTrackers'] = 1
