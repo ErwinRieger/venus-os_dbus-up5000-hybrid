@@ -7,7 +7,6 @@ from os import statvfs
 from subprocess import check_output, CalledProcessError
 import logging
 import dbus
-logger = logging.getLogger(__name__)
 
 VEDBUS_INVALID = dbus.Array([], signature=dbus.Signature('i'), variant_level=1)
 
@@ -22,10 +21,10 @@ class NoVrmPortalIdError(Exception):
 def exit_on_error(func, *args, **kwargs):
 	try:
 		return func(*args, **kwargs)
-	except:
+	except Exception as e:
 		try:
-			print ('exit_on_error: there was an exception. Printing stacktrace will be tried and then exit')
-			print_exc()
+			logging.error ('exit_on_error: there was an exception. Printing stacktrace will be tried and then exit')
+			logging.exception(e)
 		except:
 			pass
 
@@ -128,7 +127,7 @@ def get_free_space(path):
 		s = statvfs(path)
 		result = s.f_frsize * s.f_bavail     # Number of free bytes that ordinary users
 	except Exception as ex:
-		logger.info("Error while retrieving free space for path %s: %s" % (path, ex))
+		logging.info("Error while retrieving free space for path %s: %s" % (path, ex))
 
 	return result
 
@@ -199,7 +198,7 @@ def read_file(path):
 		with open(path, 'r') as f:
 			content = f.read().rstrip()
 	except Exception as ex:
-		logger.debug("Error while reading %s: %s" % (path, ex))
+		logging.debug("Error while reading %s: %s" % (path, ex))
 
 	return content
 
